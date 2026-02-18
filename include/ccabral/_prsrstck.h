@@ -1,5 +1,5 @@
-#ifndef _PRSRSTCK_H
-#define _PRSRSTCK_H
+#ifndef CCABRAL__PRSRSTCK_H
+#define CCABRAL__PRSRSTCK_H
 
 #include "_types.h"
 #include "_auxds.h"

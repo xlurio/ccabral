@@ -1,5 +1,5 @@
-#ifndef CONSTANTS_H
-#define CONSTANTS_H
+#ifndef CCABRAL_CONSTANTS_H
+#define CCABRAL_CONSTANTS_H
 
 #include "_types.h"
 

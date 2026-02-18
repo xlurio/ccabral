@@ -1,5 +1,5 @@
-#ifndef _AUXDS_H
-#define _AUXDS_H
+#ifndef CCABRAL__AUXDS_H
+#define CCABRAL__AUXDS_H
 
 #include <stdlib.h>
 #include "_types.h"

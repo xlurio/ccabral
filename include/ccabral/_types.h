@@ -1,5 +1,5 @@
-#ifndef _TYPES_H
-#define _TYPES_H
+#ifndef CCABRAL__TYPES_H
+#define CCABRAL__TYPES_H
 
 #include <stdint.h>
 

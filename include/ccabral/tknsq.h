@@ -1,5 +1,5 @@
-#ifndef TOKENQUEUE_H
-#define TOKENQUEUE_H
+#ifndef CCABRAL_TOKENQUEUE_H
+#define CCABRAL_TOKENQUEUE_H
 
 #include "_types.h"
 #include <cbarroso/queue.h>

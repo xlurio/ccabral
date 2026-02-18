@@ -1,5 +1,5 @@
-#ifndef PARSER_H
-#define PARSER_H
+#ifndef CCABRAL_PARSER_H
+#define CCABRAL_PARSER_H
 
 #include <cbarroso/tree.h>
 #include <ccabral/_auxds.h>
