@@ -241,6 +241,10 @@ Contributions are welcome! Please ensure that:
 
 Current version: **0.1.0**
 
+## Why "ccabral"
+
+The name **ccabral** is a tribute to [Ana Suelly Câmara Cabral](https://pt.wikipedia.org/wiki/Ana_Suelly_C%C3%A2mara_Cabral).
+
 ## See Also
 
 - [cbarroso](external/cbarroso/README.md) - Data structures library used by ccabral
