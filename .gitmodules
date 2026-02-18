@@ -1,0 +1,6 @@
+[submodule "external/cbarroso"]
+	path = external/cbarroso
+	url = git@github.com:xlurio/cbarroso.git
+[submodule "external/ccauchy"]
+	path = external/ccauchy
+	url = git@github.com:xlurio/ccauchy.git

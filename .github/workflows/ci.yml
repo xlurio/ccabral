@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake
+    
+    - name: Configure CMake
+      run: |
+        mkdir -p build
+        cd build
+        cmake -DCCB_BUILD_TESTING=ON ..
+    
+    - name: Build
+      run: |
+        cd build
+        make
+    
+    - name: Run tests
+      run: |
+        cd build
+        ctest --output-on-failure --verbose
+    
+    - name: Test summary
+      if: always()
+      run: |
+        cd build
+        ./test_runner || true
