@@ -4,21 +4,44 @@
 #include <ccabral/_auxds.h>
 #include <ccabral/constants.h>
 
+static uint8_t sProductionYieldsEpsilon(ProductionData *production)
+{
+    GrammarData *firstElement = (GrammarData *)production->rightHandHead->value;
+    return (firstElement->id == CCB_EMPTY_STRING_TR);
+}
+
 static uint8_t sSetPrdc4NtNTrInPrdtPrsnTable(
     CCB_production_t **prdtPrsnTable,
     CCB_production_t rule,
     CCB_nonterminal_t nonterminal,
-    CCB_terminal_t terminal)
+    CCB_terminal_t terminal,
+    ProductionData **productions)
 {
     if (prdtPrsnTable[nonterminal][terminal] > CCB_ERROR_PR)
     {
-        fprintf(
-            stderr,
-            "A collision was found for rule %d, nonterminal %d and terminal %d\n",
-            rule,
-            nonterminal,
-            terminal);
-        return CCB_ERROR;
+        CCB_production_t existingRule = prdtPrsnTable[nonterminal][terminal];
+        uint8_t existingYieldsEpsilon = sProductionYieldsEpsilon(productions[existingRule]);
+        uint8_t newYieldsEpsilon = sProductionYieldsEpsilon(productions[rule]);
+
+        if (existingYieldsEpsilon && !newYieldsEpsilon)
+        {
+            prdtPrsnTable[nonterminal][terminal] = rule;
+            return CCB_SUCCESS;
+        }
+        else if (!existingYieldsEpsilon && newYieldsEpsilon)
+        {
+            return CCB_SUCCESS;
+        }
+        else
+        {
+            fprintf(
+                stderr,
+                "A collision was found for rule %d, nonterminal %d and terminal %d\n",
+                rule,
+                nonterminal,
+                terminal);
+            return CCB_ERROR;
+        }
     }
 
     prdtPrsnTable[nonterminal][terminal] = rule;
@@ -52,7 +75,8 @@ static int8_t sPopulatePrdtPrsnTable(
                 if (sSetPrdc4NtNTrInPrdtPrsnTable(
                         prdtPrsnTable, productionData->id,
                         productionNonterminal,
-                        currFollowTerminal) == CCB_ERROR)
+                        currFollowTerminal,
+                        productions) == CCB_ERROR)
                 {
                     return CCB_ERROR;
                 }
@@ -76,7 +100,8 @@ static int8_t sPopulatePrdtPrsnTable(
                             prdtPrsnTable,
                             productionData->id,
                             productionNonterminal,
-                            currFirstTerminal) == CCB_ERROR)
+                            currFirstTerminal,
+                            productions) == CCB_ERROR)
                     {
                         return CCB_ERROR;
                     }
