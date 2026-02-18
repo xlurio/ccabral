@@ -1,7 +1,7 @@
 #ifndef CCABRAL_CONSTANTS_H
 #define CCABRAL_CONSTANTS_H
 
-#include "_types.h"
+#include "types.h"
 
 // Return codes
 #define CCB_SUCCESS 0

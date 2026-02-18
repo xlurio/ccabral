@@ -1,8 +1,8 @@
 #ifndef CCABRAL__PRSRSTCK_H
 #define CCABRAL__PRSRSTCK_H
 
-#include "_types.h"
-#include "_auxds.h"
+#include "types.h"
+#include "auxds.h"
 #include <cbarroso/stack.h>
 
 typedef Stack ParserStack;

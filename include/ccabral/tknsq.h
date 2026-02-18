@@ -1,7 +1,7 @@
 #ifndef CCABRAL_TOKENQUEUE_H
 #define CCABRAL_TOKENQUEUE_H
 
-#include "_types.h"
+#include "types.h"
 #include <cbarroso/queue.h>
 
 typedef Queue TokenQueue;

@@ -73,7 +73,7 @@ make
 ```c
 #include <ccabral/parser.h>
 #include <ccabral/tknsq.h>
-#include <ccabral/_auxds.h>
+#include <ccabral/auxds.h>
 #include <ccabral/constants.h>
 
 // Define your terminals

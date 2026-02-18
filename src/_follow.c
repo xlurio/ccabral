@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-#include <ccabral/_auxds.h>
+#include <ccabral/auxds.h>
 #include <ccabral/constants.h>
 
 static bool isTerminalInList(SinglyLinkedListNode *list, CCB_terminal_t terminal)

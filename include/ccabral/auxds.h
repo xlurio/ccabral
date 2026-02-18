@@ -2,7 +2,7 @@
 #define CCABRAL__AUXDS_H
 
 #include <stdlib.h>
-#include "_types.h"
+#include "types.h"
 #include "constants.h"
 #include <cbarroso/dblylnkdlist.h>
 #include <cbarroso/sngllnkdlist.h>

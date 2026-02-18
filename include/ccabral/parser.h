@@ -2,7 +2,7 @@
 #define CCABRAL_PARSER_H
 
 #include <cbarroso/tree.h>
-#include <ccabral/_auxds.h>
+#include <ccabral/auxds.h>
 #include <ccabral/tknsq.h>
 
 typedef int8_t (*RunRuleActionCallback)(TreeNode **, CCB_production_t);

@@ -1,4 +1,4 @@
-#include <ccabral/_auxds.h>
+#include <ccabral/auxds.h>
 #include <ccauchy.h>
 
 // Helper function to create a simple production for testing

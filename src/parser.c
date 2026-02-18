@@ -1,9 +1,9 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <cbarroso/tree.h>
-#include <ccabral/_types.h>
+#include <ccabral/types.h>
 #include <ccabral/_prsrstck.h>
-#include <ccabral/_auxds.h>
+#include <ccabral/auxds.h>
 #include <ccabral/constants.h>
 #include <ccabral/tknsq.h>
 #include <ccabral/parser.h>

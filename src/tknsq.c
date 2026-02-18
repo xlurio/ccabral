@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <ccabral/_types.h>
+#include <ccabral/types.h>
 #include <ccabral/constants.h>
 #include <ccabral/tknsq.h>
 
