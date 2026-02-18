@@ -94,5 +94,12 @@ if(CCB_BUILD_TESTING)
     target_include_directories(test_runner PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/external/ccauchy/include)
     target_link_libraries(test_runner PRIVATE ccabral::ccabral)
     
+    # Define test grammar constants to enable parser tests
+    target_compile_definitions(test_runner PRIVATE
+        CCB_NUM_OF_PRODUCTIONS=1
+        CCB_NUM_OF_NONTERMINALS=1
+        CCB_NUM_OF_TERMINALS=2
+    )
+    
     add_test(NAME AllTests COMMAND test_runner)
 endif()

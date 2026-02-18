@@ -123,23 +123,10 @@ TreeNode *Parser__parse(Parser *self, TokenQueue *input)
             ProductionData *productionData = self->productions[self->prdcPrsnTbl[stackTop->id][currToken]];
             DoublyLinkedListNode *currentGrammarNode = productionData->rightHandTail;
             GrammarData *currentGrammar = currentGrammarNode->value;
+            uint8_t isNotEmptyString = currentGrammar->type != CCB_TERMINAL_GT || currentGrammar->id != CCB_EMPTY_STRING_TR;
 
-            if (ParserStack__push(
-                    stack,
-                    currentGrammar->id,
-                    currentGrammar->type) == CCB_ERROR)
+            if (isNotEmptyString)
             {
-                fprintf(stderr, "Failed to push the grammar to stack\n");
-                free(stackTop);
-                Stack__del(stack);
-                return NULL;
-            }
-
-            while (currentGrammarNode->prev != NULL)
-            {
-                currentGrammarNode = currentGrammarNode->prev;
-                currentGrammar = currentGrammarNode->value;
-
                 if (ParserStack__push(
                         stack,
                         currentGrammar->id,
@@ -149,6 +136,23 @@ TreeNode *Parser__parse(Parser *self, TokenQueue *input)
                     free(stackTop);
                     Stack__del(stack);
                     return NULL;
+                }
+
+                while (currentGrammarNode->prev != NULL)
+                {
+                    currentGrammarNode = currentGrammarNode->prev;
+                    currentGrammar = currentGrammarNode->value;
+
+                    if (ParserStack__push(
+                            stack,
+                            currentGrammar->id,
+                            currentGrammar->type) == CCB_ERROR)
+                    {
+                        fprintf(stderr, "Failed to push the grammar to stack\n");
+                        free(stackTop);
+                        Stack__del(stack);
+                        return NULL;
+                    }
                 }
             }
 
