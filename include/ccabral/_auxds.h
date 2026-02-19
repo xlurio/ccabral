@@ -49,7 +49,7 @@ typedef struct GrammarData
 uint8_t GrammarData__isEndOfText(GrammarData *self);
 uint8_t GrammarData__isEmptyString(GrammarData *self);
 
-CCB_production_t **buildPrdcPrsnTbl(ProductionData **productions);
+CCB_production_t **buildPrdcPrsnTble(ProductionData **productions);
 void destroyPrdtPrsnTable(CCB_production_t **prdtPrsnTable);
 
 #endif

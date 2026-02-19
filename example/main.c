@@ -2,209 +2,113 @@
 #include <stdio.h>
 #include <string.h>
 #include <cbarroso/tree.h>
-#include <ccabral/_auxds.h>
 #include <ccabral/types.h>
 #include <ccabral/constants.h>
 #include <ccabral/parser.h>
 #include <ccabral/tknsq.h>
+#include <ccabral/prdsset.h>
 
 // Terminals
 #define PLUS_TR (CCB_terminal_t)2
 #define MINUS_TR (CCB_terminal_t)3
 #define LOWER_A_TR (CCB_terminal_t)4
-#define CCB_NUM_OF_TERMINALS 5
 
 // Productions
 #define START_RULE_1_PR (CCB_production_t)0
 #define START_RULE_2_PR (CCB_production_t)1
 #define START_RULE_3_PR (CCB_production_t)2
-#define CCB_NUM_OF_PRODUCTIONS 3
 
+void destroyProductions(ProductionData **productions, int8_t productionsSize)
+{
+    if (productionsSize < 0)
+    {
+        productionsSize = CCB_NUM_OF_PRODUCTIONS;
+    }
+
+    for (uint8_t productionsIndex = 0;
+         productionsIndex < productionsSize;
+         productionsIndex++)
+    {
+        ProductionData__del(productions[productionsIndex]);
+    }
+
+    free(productions);
+}
+
+/* `S --> '+' S S` */
 static ProductionData *buildStartRule1()
 {
-    ProductionData *production = malloc(sizeof(ProductionData));
+    ProductionData *production = ProductionData__new(
+        START_RULE_1_PR,
+        CCB_START_NT,
+        PLUS_TR,
+        CCB_TERMINAL_GT);
+
     if (production == NULL)
     {
-        fprintf(stderr, "Failed to allocate memory for production\n");
+        fprintf(stderr, "Failed to create production");
         return NULL;
     }
 
-    production->id = START_RULE_1_PR;
-    production->leftHand = CCB_START_NT;
+    if (ProductionData__insertRightHandGrammar(production, CCB_START_NT, CCB_NONTERMINAL_GT) <= CCB_ERROR)
+    {
+        ProductionData__del(production);
+        return NULL;
+    }
 
-    GrammarData *gd1 = malloc(sizeof(GrammarData));
-    if (gd1 == NULL)
+    if (ProductionData__insertRightHandGrammar(production, CCB_START_NT, CCB_NONTERMINAL_GT) <= CCB_ERROR)
     {
-        fprintf(stderr, "Failed to allocate memory for GrammarData\n");
-        free(production);
+        ProductionData__del(production);
         return NULL;
     }
-    gd1->id = PLUS_TR;
-    gd1->type = CCB_TERMINAL_GT;
-    production->rightHandHead = DoublyLinkedListNode__new(gd1, sizeof(GrammarData *));
-    if (production->rightHandHead == NULL)
-    {
-        free(gd1);
-        free(production);
-        return NULL;
-    }
-    production->rightHandTail = production->rightHandHead;
-
-    GrammarData *gd2 = malloc(sizeof(GrammarData));
-    if (gd2 == NULL)
-    {
-        fprintf(stderr, "Failed to allocate memory for GrammarData\n");
-        free(gd1);
-        free(production->rightHandHead);
-        free(production);
-        return NULL;
-    }
-    gd2->id = CCB_START_NT;
-    gd2->type = CCB_NONTERMINAL_GT;
-    if (DoublyLinkedListNode__insertAtTail(production->rightHandHead, gd2, sizeof(GrammarData *)) == CCB_ERROR)
-    {
-        free(gd2);
-        free(gd1);
-        free(production->rightHandHead);
-        free(production);
-        return NULL;
-    }
-    production->rightHandTail = production->rightHandHead->next;
-
-    GrammarData *gd3 = malloc(sizeof(GrammarData));
-    if (gd3 == NULL)
-    {
-        fprintf(stderr, "Failed to allocate memory for GrammarData\n");
-        free(gd2);
-        DoublyLinkedListNode *node = production->rightHandHead;
-        free(node->value);
-        free(node);
-        free(production);
-        return NULL;
-    }
-    gd3->id = CCB_START_NT;
-    gd3->type = CCB_NONTERMINAL_GT;
-    if (DoublyLinkedListNode__insertAtTail(production->rightHandHead, gd3, sizeof(GrammarData *)) == CCB_ERROR)
-    {
-        free(gd3);
-        free(gd2);
-        free(gd1);
-        free(production->rightHandHead);
-        free(production);
-        return NULL;
-    }
-    production->rightHandTail = production->rightHandTail->next;
 
     return production;
 }
 
+/* `S --> '-' S S` */
 static ProductionData *buildStartRule2()
 {
-    ProductionData *production = malloc(sizeof(ProductionData));
+    ProductionData *production = ProductionData__new(
+        START_RULE_2_PR,
+        CCB_START_NT,
+        MINUS_TR,
+        CCB_TERMINAL_GT);
+
     if (production == NULL)
     {
-        fprintf(stderr, "Failed to allocate memory for production\n");
+        fprintf(stderr, "Failed to create production");
         return NULL;
     }
 
-    production->id = START_RULE_2_PR;
-    production->leftHand = CCB_START_NT;
+    if (ProductionData__insertRightHandGrammar(production, CCB_START_NT, CCB_NONTERMINAL_GT) <= CCB_ERROR)
+    {
+        ProductionData__del(production);
+        return NULL;
+    }
 
-    GrammarData *gd1 = malloc(sizeof(GrammarData));
-    if (gd1 == NULL)
+    if (ProductionData__insertRightHandGrammar(production, CCB_START_NT, CCB_NONTERMINAL_GT) <= CCB_ERROR)
     {
-        fprintf(stderr, "Failed to allocate memory for GrammarData\n");
-        free(production);
+        ProductionData__del(production);
         return NULL;
     }
-    gd1->id = MINUS_TR;
-    gd1->type = CCB_TERMINAL_GT;
-    production->rightHandHead = DoublyLinkedListNode__new(gd1, sizeof(GrammarData *));
-    if (production->rightHandHead == NULL)
-    {
-        free(gd1);
-        free(production);
-        return NULL;
-    }
-    production->rightHandTail = production->rightHandHead;
-
-    GrammarData *gd2 = malloc(sizeof(GrammarData));
-    if (gd2 == NULL)
-    {
-        fprintf(stderr, "Failed to allocate memory for GrammarData\n");
-        free(gd1);
-        free(production->rightHandHead);
-        free(production);
-        return NULL;
-    }
-    gd2->id = CCB_START_NT;
-    gd2->type = CCB_NONTERMINAL_GT;
-    if (DoublyLinkedListNode__insertAtTail(production->rightHandHead, gd2, sizeof(GrammarData *)) == CCB_ERROR)
-    {
-        free(gd2);
-        free(gd1);
-        free(production->rightHandHead);
-        free(production);
-        return NULL;
-    }
-    production->rightHandTail = production->rightHandHead->next;
-
-    GrammarData *gd3 = malloc(sizeof(GrammarData));
-    if (gd3 == NULL)
-    {
-        fprintf(stderr, "Failed to allocate memory for GrammarData\n");
-        free(gd2);
-        DoublyLinkedListNode *node = production->rightHandHead;
-        free(node->value);
-        free(node);
-        free(production);
-        return NULL;
-    }
-    gd3->id = CCB_START_NT;
-    gd3->type = CCB_NONTERMINAL_GT;
-    if (DoublyLinkedListNode__insertAtTail(production->rightHandHead, gd3, sizeof(GrammarData *)) == CCB_ERROR)
-    {
-        free(gd3);
-        free(gd2);
-        free(gd1);
-        free(production->rightHandHead);
-        free(production);
-        return NULL;
-    }
-    production->rightHandTail = production->rightHandTail->next;
 
     return production;
 }
 
+/* `S --> 'a'` */
 static ProductionData *buildStartRule3()
 {
-    ProductionData *production = malloc(sizeof(ProductionData));
+    ProductionData *production = ProductionData__new(
+        START_RULE_3_PR,
+        CCB_START_NT,
+        LOWER_A_TR,
+        CCB_TERMINAL_GT);
+
     if (production == NULL)
     {
-        fprintf(stderr, "Failed to allocate memory for production\n");
+        fprintf(stderr, "Failed to create production");
         return NULL;
     }
-
-    production->id = START_RULE_3_PR;
-    production->leftHand = CCB_START_NT;
-
-    GrammarData *gd1 = malloc(sizeof(GrammarData));
-    if (gd1 == NULL)
-    {
-        fprintf(stderr, "Failed to allocate memory for GrammarData\n");
-        free(production);
-        return NULL;
-    }
-    gd1->id = LOWER_A_TR;
-    gd1->type = CCB_TERMINAL_GT;
-    production->rightHandHead = DoublyLinkedListNode__new(gd1, sizeof(GrammarData *));
-    if (production->rightHandHead == NULL)
-    {
-        free(gd1);
-        free(production);
-        return NULL;
-    }
-    production->rightHandTail = production->rightHandHead;
 
     return production;
 }
@@ -222,42 +126,25 @@ ProductionData **buildProductions()
     productions[START_RULE_1_PR] = buildStartRule1();
     if (productions[START_RULE_1_PR] == NULL)
     {
-        free(productions);
+        destroyProductions(productions, 0);
         return NULL;
     }
 
     productions[START_RULE_2_PR] = buildStartRule2();
     if (productions[START_RULE_2_PR] == NULL)
     {
-        free(productions[START_RULE_1_PR]);
-        free(productions);
+        destroyProductions(productions, 1);
         return NULL;
     }
 
     productions[START_RULE_3_PR] = buildStartRule3();
     if (productions[START_RULE_3_PR] == NULL)
     {
-        free(productions[START_RULE_1_PR]);
-        free(productions[START_RULE_2_PR]);
-        free(productions);
+        destroyProductions(productions, 2);
         return NULL;
     }
 
     return productions;
-}
-
-void destroyProductions(ProductionData **productions)
-{
-    for (uint8_t productionsIndex = 0;
-         productionsIndex < CCB_NUM_OF_PRODUCTIONS;
-         productionsIndex++)
-    {
-        DoublyLinkedListNode__del(productions[productionsIndex]->rightHandHead);
-
-        free(productions[productionsIndex]);
-    }
-
-    free(productions);
 }
 
 void printAstHelper(TreeNode *tree, const char *prefix, int isLast);
@@ -391,7 +278,7 @@ int main()
 
     TreeNode__del(tree);
     Parser__del(parser);
-    destroyProductions(productions);
+    destroyProductions(productions, CCB_NUM_OF_PRODUCTIONS);
     Queue__del(queue);
 
     return EXIT_SUCCESS;

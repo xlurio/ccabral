@@ -4,8 +4,8 @@
             "name": "Linux",
             "includePath": [
                 "${workspaceFolder}/**",
-                "${workspaceFolder}/**",
-                "${workspaceFolder}/external/ccauchy/include"
+                "${workspaceFolder}/external/ccauchy/include",
+                "${workspaceFolder}/external/clinschoten/include"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",

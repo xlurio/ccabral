@@ -248,7 +248,7 @@ TEST(test_auxds_build_parse_table)
                                              CCB_END_OF_TEXT_TR, CCB_TERMINAL_GT);
     }
     
-    CCB_production_t **parseTable = buildPrdcPrsnTbl(productions);
+    CCB_production_t **parseTable = buildPrdcPrsnTble(productions);
     ASSERT_NOT_NULL(parseTable, "Parse table should not be NULL");
     
     // Cleanup

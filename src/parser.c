@@ -27,7 +27,7 @@ Parser *Parser__new(ProductionData **productions, RunRuleActionCallback runRuleA
     parser->productions = productions;
     parser->runRuleAction = runRuleAction;
 
-    parser->prdcPrsnTbl = buildPrdcPrsnTbl(parser->productions);
+    parser->prdcPrsnTbl = buildPrdcPrsnTble(parser->productions);
 
     if (parser->prdcPrsnTbl == NULL)
     {

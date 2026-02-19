@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 project(ccabral
-    VERSION 0.1.0
+    VERSION 0.2.0
     DESCRIPTION "C library for parser implementation"
     LANGUAGES C
 )
@@ -9,7 +9,11 @@ project(ccabral
 option(CCB_BUILD_EXAMPLE "Build the example executable" OFF)
 option(CCB_BUILD_TESTING "Build the testing tree" OFF)
 
+# Disable testing in external dependencies
+set(CLN_BUILD_TESTING OFF CACHE BOOL "Build clinschoten tests" FORCE)
+
 add_subdirectory(external/cbarroso)
+add_subdirectory(external/clinschoten)
 
 add_library(ccabral STATIC)
 
@@ -19,6 +23,7 @@ target_sources(ccabral
     PRIVATE src/_grmrdata.c
     PRIVATE src/_prdcprsntabl.c
     PRIVATE src/_prsrstck.c
+    PRIVATE src/prdcdata.c
     PRIVATE src/parser.c
     PRIVATE src/tknsq.c
 )
@@ -31,6 +36,9 @@ target_include_directories(ccabral
 
 target_link_libraries(ccabral
     PUBLIC cbarroso::cbarroso
+)
+target_link_libraries(ccabral
+    PUBLIC CLN::clinschoten
 )
 
 target_compile_features(ccabral PUBLIC c_std_99)
@@ -78,6 +86,11 @@ install(FILES
 
 if(CCB_BUILD_EXAMPLE)
     add_executable(ccabral_example example/main.c)
+    target_compile_definitions(ccabral PRIVATE
+        CCB_NUM_OF_PRODUCTIONS=3
+        CCB_NUM_OF_NONTERMINALS=1
+        CCB_NUM_OF_TERMINALS=5
+    )
     target_link_libraries(ccabral_example PRIVATE ccabral::ccabral)
 endif()
 

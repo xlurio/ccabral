@@ -3,6 +3,8 @@
 #include <string.h>
 #include <ccabral/_auxds.h>
 #include <ccabral/constants.h>
+#include <clinschoten/logger.h>
+#include <clinschoten/constants.h>
 
 static uint8_t sProductionYieldsEpsilon(ProductionData *production)
 {
@@ -80,7 +82,7 @@ static int8_t sPopulatePrdtPrsnTable(
                 {
                     return CCB_ERROR;
                 }
-                
+
                 currFollowNode = currFollowNode->next;
             }
         }
@@ -109,7 +111,7 @@ static int8_t sPopulatePrdtPrsnTable(
                     didProductionMatched = 1;
                     break;
                 }
-                
+
                 currFirstNode = currFirstNode->next;
             }
 
@@ -137,7 +139,68 @@ void destroyPrdtPrsnTable(CCB_production_t **prdtPrsnTable)
     free(prdtPrsnTable);
 }
 
-CCB_production_t **buildPrdcPrsnTbl(ProductionData **productions)
+void logPrdcPrsnTble(CCB_production_t **prdcPrsnTble)
+{
+    const char *loggerName = "_prdcprsntabl";
+    ClnLogger *logger = ClnLogger__new(loggerName, strlen(loggerName));
+
+    // Calculate buffer size needed
+    size_t bufferSize = 10000; // Adjust as needed based on table size
+    char *tableStr = malloc(bufferSize);
+    if (tableStr == NULL)
+    {
+        fprintf(stderr, "Failed to allocate memory for table string\n");
+        return;
+    }
+
+    size_t offset = 0;
+
+    // Add title
+    offset += snprintf(tableStr + offset, bufferSize - offset, "Predictive Parsing Table:\n");
+
+    // Print header
+    offset += snprintf(tableStr + offset, bufferSize - offset, "     |");
+    for (uint8_t terminal = 0; terminal < CCB_NUM_OF_TERMINALS; terminal++)
+    {
+        offset += snprintf(tableStr + offset, bufferSize - offset, " T%-3d |", terminal);
+    }
+    offset += snprintf(tableStr + offset, bufferSize - offset, "\n");
+
+    // Print separator
+    offset += snprintf(tableStr + offset, bufferSize - offset, "-----+");
+    for (uint8_t terminal = 0; terminal < CCB_NUM_OF_TERMINALS; terminal++)
+    {
+        offset += snprintf(tableStr + offset, bufferSize - offset, "------+");
+    }
+    offset += snprintf(tableStr + offset, bufferSize - offset, "\n");
+
+    // Print table rows
+    for (uint8_t nonterminal = 0; nonterminal < CCB_NUM_OF_NONTERMINALS; nonterminal++)
+    {
+        offset += snprintf(tableStr + offset, bufferSize - offset, "NT%-3d|", nonterminal);
+
+        for (uint8_t terminal = 0; terminal < CCB_NUM_OF_TERMINALS; terminal++)
+        {
+            CCB_production_t production = prdcPrsnTble[nonterminal][terminal];
+
+            if (production != CCB_ERROR_PR)
+            {
+                offset += snprintf(tableStr + offset, bufferSize - offset, " P%-3d |", production);
+            }
+            else
+            {
+                offset += snprintf(tableStr + offset, bufferSize - offset, "   -  |");
+            }
+        }
+        offset += snprintf(tableStr + offset, bufferSize - offset, "\n");
+    }
+
+    ClnLogger__log(logger, CLN_DEBUG_LL, "%s", strlen("%s"), tableStr);
+    free(tableStr);
+    ClnLogger__del(logger);
+}
+
+CCB_production_t **buildPrdcPrsnTble(ProductionData **productions)
 {
     FirstFollowEntry **first = buildFirst(productions);
 
@@ -205,6 +268,8 @@ CCB_production_t **buildPrdcPrsnTbl(ProductionData **productions)
         destroyPrdtPrsnTable(prdtPrsnTable);
         return NULL;
     }
+
+    logPrdcPrsnTble(prdtPrsnTable);
 
     return prdtPrsnTable;
 }

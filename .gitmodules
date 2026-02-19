@@ -4,3 +4,6 @@
 [submodule "external/ccauchy"]
 	path = external/ccauchy
 	url = git@github.com:xlurio/ccauchy.git
+[submodule "external/clinschoten"]
+	path = external/clinschoten
+	url = git@github.com:xlurio/clinschoten.git
