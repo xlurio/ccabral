@@ -1,8 +1,10 @@
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
-#include <ccabral/_auxds.h>
+#include <ccabral/_frstfllw.h>
+#include <ccabral/_grmmdata.h>
+#include <ccabral/_prdcdata.h>
 #include <ccabral/constants.h>
 
 static bool isTerminalInList(SinglyLinkedListNode *list, CCB_terminal_t terminal)

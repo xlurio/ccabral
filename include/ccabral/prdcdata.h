@@ -1,6 +1,7 @@
-#ifndef CCABRAL_PRODUCTIONS_SET_H
-#define CCABRAL_PRODUCTIONS_SET_H
+#ifndef CCABRAL_PRODUCTION_DATA_H
+#define CCABRAL_PRODUCTION_DATA_H
 
+#include <cbarroso/dblylnkdlist.h>
 #include <ccabral/types.h>
 
 typedef struct ProductionData ProductionData;

@@ -1,6 +1,10 @@
 #include <stdio.h>
-#include <ccabral/_auxds.h>
+#include <stdlib.h>
 #include <cbarroso/dblylnkdlist.h>
+#include <ccabral/_grmmdata.h>
+#include <ccabral/_prdcdata.h>
+#include <ccabral/constants.h>
+#include <ccabral/types.h>
 
 ProductionData *ProductionData__new(
     CCB_production_t id,

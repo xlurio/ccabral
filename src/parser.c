@@ -1,21 +1,20 @@
-#include <stdint.h>
 #include <stdio.h>
-#include <cbarroso/tree.h>
-#include <ccabral/types.h>
+#include <stdlib.h>
+#include <ccabral/_prdcdata.h>
+#include <ccabral/_prdcprsntble.h>
 #include <ccabral/_prsrstck.h>
-#include <ccabral/_auxds.h>
 #include <ccabral/constants.h>
-#include <ccabral/tknsq.h>
 #include <ccabral/parser.h>
 
 typedef struct Parser
 {
     ProductionData **productions;
-    CCB_production_t **prdcPrsnTbl;
+    PrdcPrsnTble *prdcPrsnTble;
     RunRuleActionCallback runRuleAction;
 } Parser;
 
-Parser *Parser__new(ProductionData **productions, RunRuleActionCallback runRuleAction)
+Parser *Parser__new(ProductionData **productions,
+                    RunRuleActionCallback runRuleAction)
 {
     Parser *parser = malloc(sizeof(Parser));
 
@@ -27,9 +26,9 @@ Parser *Parser__new(ProductionData **productions, RunRuleActionCallback runRuleA
     parser->productions = productions;
     parser->runRuleAction = runRuleAction;
 
-    parser->prdcPrsnTbl = buildPrdcPrsnTble(parser->productions);
+    parser->prdcPrsnTble = PrdcPrsnTble__new(parser->productions);
 
-    if (parser->prdcPrsnTbl == NULL)
+    if (parser->prdcPrsnTble == NULL)
     {
         fprintf(stderr, "Failed to create the predictive parsing table\n");
         free(parser);
@@ -106,7 +105,7 @@ TreeNode *Parser__parse(Parser *self, TokenQueue *input)
                 return NULL;
             }
         }
-        else if (self->prdcPrsnTbl[stackTop->id][currToken] == CCB_ERROR_PR)
+        else if (self->prdcPrsnTble[stackTop->id][currToken] == CCB_ERROR_PR)
         {
             fprintf(stderr, "Unexpected token %d\n", currToken);
             free(stackTop);
@@ -117,10 +116,10 @@ TreeNode *Parser__parse(Parser *self, TokenQueue *input)
         {
             if (self->runRuleAction != NULL)
             {
-                self->runRuleAction(&tree, self->prdcPrsnTbl[stackTop->id][currToken]);
+                self->runRuleAction(&tree, self->prdcPrsnTble[stackTop->id][currToken]);
             }
 
-            ProductionData *productionData = self->productions[self->prdcPrsnTbl[stackTop->id][currToken]];
+            ProductionData *productionData = self->productions[self->prdcPrsnTble[stackTop->id][currToken]];
             DoublyLinkedListNode *currentGrammarNode = productionData->rightHandTail;
             GrammarData *currentGrammar = currentGrammarNode->value;
 
@@ -185,6 +184,6 @@ TreeNode *Parser__parse(Parser *self, TokenQueue *input)
 
 void Parser__del(Parser *self)
 {
-    destroyPrdtPrsnTable(self->prdcPrsnTbl);
+    PrdcPrsnTble__del(self->prdcPrsnTble);
     free(self);
 }

@@ -6,7 +6,7 @@
 #include <ccabral/constants.h>
 #include <ccabral/parser.h>
 #include <ccabral/tknsq.h>
-#include <ccabral/prdsset.h>
+#include <ccabral/prdcdata.h>
 
 // Terminals
 #define PLUS_TR (CCB_terminal_t)2

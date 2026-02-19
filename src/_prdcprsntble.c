@@ -1,10 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ccabral/_auxds.h>
-#include <ccabral/constants.h>
-#include <clinschoten/logger.h>
 #include <clinschoten/constants.h>
+#include <clinschoten/logger.h>
+#include <ccabral/_frstfllw.h>
+#include <ccabral/_grmmdata.h>
+#include <ccabral/_prdcdata.h>
+#include <ccabral/_prdcprsntble.h>
+#include <ccabral/constants.h>
 
 static uint8_t sProductionYieldsEpsilon(ProductionData *production)
 {
@@ -129,17 +132,17 @@ static int8_t sPopulatePrdtPrsnTable(
     return CCB_SUCCESS;
 }
 
-void destroyPrdtPrsnTable(CCB_production_t **prdtPrsnTable)
+void PrdcPrsnTble__del(PrdcPrsnTble *self)
 {
-    for (uint8_t prdtPrsnTableIndex = 0; prdtPrsnTableIndex < CCB_NUM_OF_NONTERMINALS; prdtPrsnTableIndex++)
+    for (uint8_t prdcPrsnTbleIndex = 0; prdcPrsnTbleIndex < CCB_NUM_OF_NONTERMINALS; prdcPrsnTbleIndex++)
     {
-        free(prdtPrsnTable[prdtPrsnTableIndex]);
+        free(self[prdcPrsnTbleIndex]);
     }
 
-    free(prdtPrsnTable);
+    free(self);
 }
 
-void logPrdcPrsnTble(CCB_production_t **prdcPrsnTble)
+void PrdcPrsnTble__log(PrdcPrsnTble *self)
 {
     const char *loggerName = "_prdcprsntabl";
     ClnLogger *logger = ClnLogger__new(loggerName, strlen(loggerName));
@@ -181,7 +184,7 @@ void logPrdcPrsnTble(CCB_production_t **prdcPrsnTble)
 
         for (uint8_t terminal = 0; terminal < CCB_NUM_OF_TERMINALS; terminal++)
         {
-            CCB_production_t production = prdcPrsnTble[nonterminal][terminal];
+            CCB_production_t production = self[nonterminal][terminal];
 
             if (production != CCB_ERROR_PR)
             {
@@ -200,7 +203,7 @@ void logPrdcPrsnTble(CCB_production_t **prdcPrsnTble)
     ClnLogger__del(logger);
 }
 
-CCB_production_t **buildPrdcPrsnTble(ProductionData **productions)
+PrdcPrsnTble *PrdcPrsnTble__new(ProductionData **productions)
 {
     FirstFollowEntry **first = buildFirst(productions);
 
@@ -265,11 +268,11 @@ CCB_production_t **buildPrdcPrsnTble(ProductionData **productions)
     {
         destroyFirstFollow(first);
         destroyFirstFollow(follow);
-        destroyPrdtPrsnTable(prdtPrsnTable);
+        PrdcPrsnTble__del(prdtPrsnTable);
         return NULL;
     }
 
-    logPrdcPrsnTble(prdtPrsnTable);
+    PrdcPrsnTble__log(prdtPrsnTable);
 
     return prdtPrsnTable;
 }

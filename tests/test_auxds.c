@@ -1,4 +1,8 @@
-#include <ccabral/_auxds.h>
+#include <ccabral/_frstfllw.h>
+#include <ccabral/_grmmdata.h>
+#include <ccabral/_prdcdata.h>
+#include <ccabral/_prdcprsntble.h>
+#include <ccabral/prdcdata.h>
 #include <ccauchy.h>
 
 // Helper function to create a simple production for testing
@@ -248,11 +252,11 @@ TEST(test_auxds_build_parse_table)
                                              CCB_END_OF_TEXT_TR, CCB_TERMINAL_GT);
     }
     
-    CCB_production_t **parseTable = buildPrdcPrsnTble(productions);
+    PrdcPrsnTble *parseTable = PrdcPrsnTble__new(productions);
     ASSERT_NOT_NULL(parseTable, "Parse table should not be NULL");
     
     // Cleanup
-    destroyPrdtPrsnTable(parseTable);
+    PrdcPrsnTble__del(parseTable);
     for (uint8_t i = 0; i < CCB_NUM_OF_PRODUCTIONS; i++)
     {
         freeTestProduction(productions[i]);

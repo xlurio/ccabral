@@ -1,19 +1,11 @@
-#ifndef CCABRAL__AUXDS_H
-#define CCABRAL__AUXDS_H
+#ifndef CCABRAL__FIRST_FOLLOW_H
+#define CCABRAL__FIRST_FOLLOW_H
 
 #include <stdlib.h>
+#include <cbarroso/sngllnkdlist.h>
+#include "prdcdata.h"
 #include "types.h"
 #include "constants.h"
-#include <cbarroso/dblylnkdlist.h>
-#include <cbarroso/sngllnkdlist.h>
-
-typedef struct ProductionData
-{
-    CCB_production_t id;
-    CCB_nonterminal_t leftHand;
-    DoublyLinkedListNode *rightHandHead;
-    DoublyLinkedListNode *rightHandTail;
-} ProductionData;
 
 typedef struct FirstFollowEntry
 {
@@ -39,17 +31,5 @@ static inline void destroyFirstFollow(FirstFollowEntry **firstFollow)
 
     free(firstFollow);
 }
-
-typedef struct GrammarData
-{
-    CCB_grammar_t id;
-    CCB_grammartype_t type;
-} GrammarData;
-
-uint8_t GrammarData__isEndOfText(GrammarData *self);
-uint8_t GrammarData__isEmptyString(GrammarData *self);
-
-CCB_production_t **buildPrdcPrsnTble(ProductionData **productions);
-void destroyPrdtPrsnTable(CCB_production_t **prdtPrsnTable);
 
 #endif
