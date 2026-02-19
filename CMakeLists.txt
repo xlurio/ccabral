@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 project(ccabral
-    VERSION 0.2.1
+    VERSION 0.2.2
     DESCRIPTION "C library for parser implementation"
     LANGUAGES C
 )
