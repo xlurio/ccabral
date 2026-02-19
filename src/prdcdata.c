@@ -58,8 +58,8 @@ int8_t ProductionData__insertRightHandGrammar(
         return CCB_ERROR;
     }
 
-    grammarData->id = CCB_START_NT;
-    grammarData->type = CCB_NONTERMINAL_GT;
+    grammarData->id = rightHandGrammar;
+    grammarData->type = rightHandGrammarType;
 
     if (DoublyLinkedListNode__insertAtTail(
             self->rightHandTail,

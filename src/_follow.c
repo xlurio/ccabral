@@ -108,35 +108,69 @@ static bool processNonterminalFollow(FirstFollowEntry **follow,
                                      FirstFollowEntry **first,
                                      CCB_nonterminal_t currentNT,
                                      CCB_nonterminal_t leftHandNT,
-                                     DoublyLinkedListNode *nextNode)
+                                     DoublyLinkedListNode *suffix)
 {
     bool modified = false;
+    bool allCanDeriveEpsilon = true;
 
-    if (nextNode != NULL)
+    // Process all symbols in the suffix after the current nonterminal
+    for (DoublyLinkedListNode *node = suffix; node != NULL; node = node->next)
     {
-        GrammarData *nextSymbol = (GrammarData *)nextNode->value;
+        GrammarData *symbol = (GrammarData *)node->value;
 
-        if (nextSymbol->type == CCB_TERMINAL_GT)
+        if (symbol->type == CCB_TERMINAL_GT)
         {
-            // Rule: If A → αBa, then add 'a' to FOLLOW(B)
-            if (addTerminalToSet(follow[currentNT], (CCB_terminal_t)nextSymbol->id))
+            CCB_terminal_t terminal = (CCB_terminal_t)symbol->id;
+            if (terminal != CCB_EMPTY_STRING_TR)
             {
-                modified = true;
+                // Found a non-epsilon terminal, add it to FOLLOW(currentNT)
+                if (addTerminalToSet(follow[currentNT], terminal))
+                {
+                    modified = true;
+                }
+                allCanDeriveEpsilon = false;
+                break;  // Stop processing suffix
             }
+            // If it's epsilon terminal, continue to next symbol
         }
-        else if (nextSymbol->type == CCB_NONTERMINAL_GT)
+        else if (symbol->type == CCB_NONTERMINAL_GT)
         {
-            // Rule: If A → αBC, then add FIRST(C) to FOLLOW(B)
-            CCB_nonterminal_t nextNT = (CCB_nonterminal_t)nextSymbol->id;
-            if (addTerminalsFromSet(follow[currentNT], first[nextNT]->entriesHead))
+            CCB_nonterminal_t nt = (CCB_nonterminal_t)symbol->id;
+            
+            // Add FIRST(nt) \ {ε} to FOLLOW(currentNT)
+            bool ntHasEpsilon = false;
+            for (SinglyLinkedListNode *firstNode = first[nt]->entriesHead; 
+                 firstNode != NULL; 
+                 firstNode = firstNode->next)
             {
-                modified = true;
+                CCB_terminal_t *terminal = (CCB_terminal_t *)firstNode->value;
+                if (*terminal == CCB_EMPTY_STRING_TR)
+                {
+                    ntHasEpsilon = true;
+                }
+                else
+                {
+                    if (addTerminalToSet(follow[currentNT], *terminal))
+                    {
+                        modified = true;
+                    }
+                }
             }
+            
+            if (!ntHasEpsilon)
+            {
+                // This nonterminal cannot derive epsilon, so we stop
+                allCanDeriveEpsilon = false;
+                break;
+            }
+            // If it can derive epsilon, continue to next symbol in suffix
         }
     }
-    else
+
+    // If all symbols in suffix can derive epsilon (or suffix is empty),
+    // add FOLLOW(leftHandNT) to FOLLOW(currentNT)
+    if (allCanDeriveEpsilon)
     {
-        // Rule: If A → αB, then add FOLLOW(A) to FOLLOW(B)
         if (addTerminalsFromSet(follow[currentNT], follow[leftHandNT]->entriesHead))
         {
             modified = true;
