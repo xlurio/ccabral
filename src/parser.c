@@ -3,7 +3,7 @@
 #include <cbarroso/tree.h>
 #include <ccabral/types.h>
 #include <ccabral/_prsrstck.h>
-#include <ccabral/auxds.h>
+#include <ccabral/_auxds.h>
 #include <ccabral/constants.h>
 #include <ccabral/tknsq.h>
 #include <ccabral/parser.h>
@@ -75,7 +75,7 @@ TreeNode *Parser__parse(Parser *self, TokenQueue *input)
         return NULL;
     }
 
-    while (stackTop->id != CCB_END_OF_TEXT_TR)
+    while (!GrammarData__isEndOfText(stackTop))
     {
         if (stackTop->type == CCB_TERMINAL_GT)
         {
@@ -123,9 +123,8 @@ TreeNode *Parser__parse(Parser *self, TokenQueue *input)
             ProductionData *productionData = self->productions[self->prdcPrsnTbl[stackTop->id][currToken]];
             DoublyLinkedListNode *currentGrammarNode = productionData->rightHandTail;
             GrammarData *currentGrammar = currentGrammarNode->value;
-            uint8_t isNotEmptyString = currentGrammar->type != CCB_TERMINAL_GT || currentGrammar->id != CCB_EMPTY_STRING_TR;
 
-            if (isNotEmptyString)
+            if (!GrammarData__isEmptyString(currentGrammar))
             {
                 if (ParserStack__push(
                         stack,

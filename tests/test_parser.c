@@ -1,6 +1,6 @@
 #include <ccabral/parser.h>
 #include <ccabral/tknsq.h>
-#include <ccabral/auxds.h>
+#include <ccabral/_auxds.h>
 #include <ccauchy.h>
 
 // Mock rule action callback for testing

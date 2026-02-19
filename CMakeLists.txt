@@ -16,6 +16,7 @@ add_library(ccabral STATIC)
 target_sources(ccabral
     PRIVATE src/_first.c
     PRIVATE src/_follow.c
+    PRIVATE src/_grmrdata.c
     PRIVATE src/_prdcprsntabl.c
     PRIVATE src/_prsrstck.c
     PRIVATE src/parser.c

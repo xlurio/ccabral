@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ccabral/auxds.h>
+#include <ccabral/_auxds.h>
 #include <ccabral/constants.h>
 
 static uint8_t sProductionYieldsEpsilon(ProductionData *production)

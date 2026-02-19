@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <cbarroso/tree.h>
-#include <ccabral/auxds.h>
+#include <ccabral/_auxds.h>
 #include <ccabral/types.h>
 #include <ccabral/constants.h>
 #include <ccabral/parser.h>
