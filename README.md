@@ -11,10 +11,12 @@ The library is built with C99 standards and focuses on simplicity, performance, 
 ## Features
 
 - **Automatic FIRST/FOLLOW Set Computation**: Automatically calculates FIRST and FOLLOW sets for your grammar
-- **Predictive Parsing Table Generation**: Generates LL(1) predictive parsing tables from production rules
+- **LL(k) Parsing Support**: Configurable lookahead distance (k) for more powerful parsing capabilities
+- **Predictive Parsing Table Generation**: Generates LL(k) predictive parsing tables from production rules
 - **Token Queue Management**: Built-in token queue for managing input streams
 - **Parse Tree Construction**: Constructs abstract syntax trees during parsing
 - **Custom Rule Actions**: Support for custom callbacks during rule execution
+- **HashMap-Based Production Storage**: Efficient production rule management using hash maps
 - **Static Library**: Lightweight static library with minimal dependencies
 - **C99 Compatible**: Works with any C99-compliant compiler
 
@@ -23,6 +25,7 @@ The library is built with C99 standards and focuses on simplicity, performance, 
 - **CMake** 3.10 or higher
 - **C99-compatible compiler** (GCC, Clang, MSVC, etc.)
 - **cbarroso** library (included as external dependency)
+- **clinschoten** library (included as external dependency for logging)
 
 ## Installation
 
@@ -73,7 +76,8 @@ make
 ```c
 #include <ccabral/parser.h>
 #include <ccabral/tknsq.h>
-#include <ccabral/_auxds.h>
+#include <ccabral/prdcdata.h>
+#include <ccabral/prdsmap.h>
 #include <ccabral/constants.h>
 
 // Define your terminals
@@ -87,16 +91,12 @@ make
 
 // Create a grammar rule
 ProductionData *createRule() {
-    ProductionData *production = malloc(sizeof(ProductionData));
-    production->id = EXPR_RULE_1;
-    production->leftHand = CCB_START_NT;
-    
-    // Build right-hand side with grammar symbols
-    GrammarData *symbol = malloc(sizeof(GrammarData));
-    symbol->id = PLUS_TR;
-    symbol->type = CCB_TERMINAL_GT;
-    production->rightHandHead = DoublyLinkedListNode__new(symbol, sizeof(GrammarData *));
-    production->rightHandTail = production->rightHandHead;
+    // Create production: EXPR -> PLUS
+    ProductionData *production = ProductionData__new(
+        EXPR_RULE_1,
+        CCB_START_NT,
+        PLUS_TR,
+        CCB_TERMINAL_GT);
     
     return production;
 }
@@ -108,56 +108,37 @@ int8_t runRuleAction(TreeNode **parseStack, CCB_production_t production) {
 }
 
 int main() {
-    // Set up productions array
-    ProductionData **productions = malloc(sizeof(ProductionData *) * NUM_PRODUCTIONS);
-    productions[0] = createRule();
-    // ... add more rules
+    // Create productions hash map
+    ProductionsHashMap *productions = HashMap__new(4);
     
-    // Create parser
-    Parser *parser = Parser__new(productions, runRuleAction);
+    // Create and add a rule
+    ProductionData *rule = createRule();
+    ProductionsHashMap__initializeTerminal(productions, CCB_START_NT, rule);
+    
+    // Add more rules for the same nonterminal
+    // ProductionData *rule2 = createRule2();
+    // ProductionsHashMap__insertProdForTerminal(productions, CCB_START_NT, rule2);
+    
+    // Create parser with k=1 lookahead
+    Parser *parser = Parser__new(productions, runRuleAction, 1);
     
     // Create token queue and add tokens
-    TokenQueue *tokens = Queue__new(sizeof(CCB_terminal_t));
-    CCB_terminal_t token = PLUS_TR;
-    TokenQueue__enqueue(tokens, token);
+    TokenQueue *tokens = Queue__new();
+    TokenQueue__enqueue(tokens, PLUS_TR);
+    TokenQueue__enqueue(tokens, CCB_END_OF_TEXT_TR);
     
     // Parse the input
     TreeNode *parseTree = Parser__parse(parser, tokens);
     
     // Clean up
+    TreeNode__del(parseTree);
     Parser__del(parser);
+    ProductionsHashMap__del(productions);
     Queue__del(tokens);
     
     return 0;
 }
 ```
-
-### Core Components
-
-#### Parser
-
-The main parser component that performs LL(1) predictive parsing:
-
-```c
-Parser *Parser__new(ProductionData **productions, RunRuleActionCallback runRuleAction);
-TreeNode *Parser__parse(Parser *self, TokenQueue *input);
-void Parser__del(Parser *self);
-```
-
-#### TokenQueue
-
-A FIFO queue for managing input tokens:
-
-```c
-int8_t TokenQueue__enqueue(TokenQueue *self, CCB_terminal_t newValue);
-int8_t TokenQueue__dequeue(TokenQueue *self, CCB_terminal_t *valueAddress);
-```
-
-#### Grammar Data Structures
-
-- **GrammarData**: Represents a grammar symbol (terminal or non-terminal)
-- **ProductionData**: Represents a production rule with left-hand side and right-hand side
-- **FirstFollowEntry**: Stores FIRST and FOLLOW sets for non-terminals
 
 ### Types and Constants
 
@@ -214,14 +195,17 @@ make
 
 The example demonstrates:
 - Defining terminals and productions
-- Creating production rules with right-hand sides
-- Setting up a parser with custom rule actions
+- Creating production rules using ProductionData API
+- Building a ProductionsHashMap for efficient rule storage
+- Setting up an LL(1) parser with k=1 lookahead
+- Implementing custom rule actions for AST construction
 - Parsing an input token stream
-- Constructing a parse tree
+- Building and visualizing an abstract syntax tree
 
 ## Dependencies
 
 - **cbarroso**: C data structures library providing linked lists, queues, stacks, trees, and hashmaps (included in `external/cbarroso`)
+- **clinschoten**: Logging library for debugging and diagnostics (included in `external/clinschoten`)
 - **ccauchy**: Testing framework (included in `external/ccauchy` for testing only)
 
 ## License
@@ -236,10 +220,6 @@ Contributions are welcome! Please ensure that:
 2. All tests pass before submitting
 3. New features include appropriate tests
 4. Documentation is updated accordingly
-
-## Version
-
-Current version: **0.1.0**
 
 ## Why "ccabral"
 

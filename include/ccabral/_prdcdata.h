@@ -16,4 +16,6 @@ typedef struct ProductionData
     DoublyLinkedListNode *rightHandTail;
 } ProductionData;
 
+ProductionData *ProductionData__deepCopy(ProductionData *self);
+
 #endif

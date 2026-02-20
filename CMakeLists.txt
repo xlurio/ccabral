@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 project(ccabral
-    VERSION 0.2.2
+    VERSION 1.0.0
     DESCRIPTION "C library for parser implementation"
     LANGUAGES C
 )
@@ -20,11 +20,15 @@ add_library(ccabral STATIC)
 target_sources(ccabral
     PRIVATE src/_first.c
     PRIVATE src/_follow.c
+    PRIVATE src/_frstfllw.c
     PRIVATE src/_grmrdata.c
+    PRIVATE src/_prdcdata.c
     PRIVATE src/_prdcprsntble.c
+    PRIVATE src/_prdsmap.c
     PRIVATE src/_prsrstck.c
     PRIVATE src/parser.c
     PRIVATE src/prdcdata.c
+    PRIVATE src/prdsmap.c
     PRIVATE src/tknsq.c
 )
 

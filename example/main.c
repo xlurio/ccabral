@@ -7,6 +7,7 @@
 #include <ccabral/parser.h>
 #include <ccabral/tknsq.h>
 #include <ccabral/prdcdata.h>
+#include <ccabral/prdsmap.h>
 
 // Terminals
 #define PLUS_TR (CCB_terminal_t)2
@@ -18,22 +19,7 @@
 #define START_RULE_2_PR (CCB_production_t)1
 #define START_RULE_3_PR (CCB_production_t)2
 
-void destroyProductions(ProductionData **productions, int8_t productionsSize)
-{
-    if (productionsSize < 0)
-    {
-        productionsSize = CCB_NUM_OF_PRODUCTIONS;
-    }
 
-    for (uint8_t productionsIndex = 0;
-         productionsIndex < productionsSize;
-         productionsIndex++)
-    {
-        ProductionData__del(productions[productionsIndex]);
-    }
-
-    free(productions);
-}
 
 /* `S --> '+' S S` */
 static ProductionData *buildStartRule1()
@@ -113,9 +99,9 @@ static ProductionData *buildStartRule3()
     return production;
 }
 
-ProductionData **buildProductions()
+ProductionsHashMap *buildProductions()
 {
-    ProductionData **productions = malloc(sizeof(ProductionData *) * CCB_NUM_OF_PRODUCTIONS);
+    ProductionsHashMap *productions = HashMap__new(4);
 
     if (productions == NULL)
     {
@@ -123,24 +109,45 @@ ProductionData **buildProductions()
         return NULL;
     }
 
-    productions[START_RULE_1_PR] = buildStartRule1();
-    if (productions[START_RULE_1_PR] == NULL)
+    ProductionData *rule1 = buildStartRule1();
+    if (rule1 == NULL)
     {
-        destroyProductions(productions, 0);
+        ProductionsHashMap__del(productions);
         return NULL;
     }
 
-    productions[START_RULE_2_PR] = buildStartRule2();
-    if (productions[START_RULE_2_PR] == NULL)
+    if (ProductionsHashMap__initializeTerminal(productions, CCB_START_NT, rule1) <= CCB_ERROR)
     {
-        destroyProductions(productions, 1);
+        ProductionData__del(rule1);
+        ProductionsHashMap__del(productions);
         return NULL;
     }
 
-    productions[START_RULE_3_PR] = buildStartRule3();
-    if (productions[START_RULE_3_PR] == NULL)
+    ProductionData *rule2 = buildStartRule2();
+    if (rule2 == NULL)
     {
-        destroyProductions(productions, 2);
+        ProductionsHashMap__del(productions);
+        return NULL;
+    }
+
+    if (ProductionsHashMap__insertProdForTerminal(productions, CCB_START_NT, rule2) <= CCB_ERROR)
+    {
+        ProductionData__del(rule2);
+        ProductionsHashMap__del(productions);
+        return NULL;
+    }
+
+    ProductionData *rule3 = buildStartRule3();
+    if (rule3 == NULL)
+    {
+        ProductionsHashMap__del(productions);
+        return NULL;
+    }
+
+    if (ProductionsHashMap__insertProdForTerminal(productions, CCB_START_NT, rule3) <= CCB_ERROR)
+    {
+        ProductionData__del(rule3);
+        ProductionsHashMap__del(productions);
         return NULL;
     }
 
@@ -270,15 +277,15 @@ int main()
     TokenQueue__enqueue(queue, LOWER_A_TR);
     TokenQueue__enqueue(queue, CCB_END_OF_TEXT_TR);
 
-    ProductionData **productions = buildProductions();
-    Parser *parser = Parser__new(productions, runRuleAction);
+    ProductionsHashMap *productions = buildProductions();
+    Parser *parser = Parser__new(productions, runRuleAction, 1);
 
     TreeNode *tree = Parser__parse(parser, queue);
     printAst(tree);
 
     TreeNode__del(tree);
     Parser__del(parser);
-    destroyProductions(productions, CCB_NUM_OF_PRODUCTIONS);
+    ProductionsHashMap__del(productions);
     Queue__del(queue);
 
     return EXIT_SUCCESS;

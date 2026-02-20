@@ -1,130 +1,331 @@
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <cbarroso/constants.h>
+#include <cbarroso/hashmap.h>
 #include <clinschoten/constants.h>
 #include <clinschoten/logger.h>
 #include <ccabral/_frstfllw.h>
 #include <ccabral/_grmmdata.h>
+#include <ccabral/_prdsmap.h>
 #include <ccabral/_prdcdata.h>
 #include <ccabral/_prdcprsntble.h>
 #include <ccabral/constants.h>
 
-static uint8_t sProductionYieldsEpsilon(ProductionData *production)
+/* Check if the production with the given rule ID yields epsilon */
+static bool sProductionYieldsEpsilon(
+    ProductionsHashMap *productions,
+    CCB_nonterminal_t nonterminal,
+    CCB_production_t rule)
 {
-    GrammarData *firstElement = (GrammarData *)production->rightHandHead->value;
-    return (firstElement->id == CCB_EMPTY_STRING_TR);
+    ProductionsHashMapEntry *entry;
+    if (HashMap__getItem(
+            productions,
+            &nonterminal,
+            sizeof(CCB_nonterminal_t),
+            (void **)&entry) <= CBR_ERROR)
+    {
+        return false;
+    }
+
+    DoublyLinkedListNode *currNode = entry->head;
+    for (; currNode != NULL; currNode = currNode->next)
+    {
+        ProductionData *prodData = currNode->value;
+        if (prodData->id == rule)
+        {
+            if (prodData->rightHandHead != NULL)
+            {
+                GrammarData *firstElement = (GrammarData *)prodData->rightHandHead->value;
+                return firstElement->id == CCB_EMPTY_STRING_TR;
+            }
+            return false;
+        }
+    }
+
+    return false;
 }
 
-static uint8_t sSetPrdc4NtNTrInPrdtPrsnTable(
-    CCB_production_t **prdtPrsnTable,
+static bool sDoesProductionMatchesFirstEntry(
+    ProductionData *currProdData,
+    CCB_terminal_t *currFirstKSeq,
+    uint8_t k,
+    ProductionsHashMap *productions)
+{
+    DoublyLinkedListNode *currNode = currProdData->rightHandHead;
+    uint8_t matchedCount = 0;
+
+    while (currNode != NULL && matchedCount < k)
+    {
+        GrammarData *grammarData = (GrammarData *)currNode->value;
+
+        if (grammarData->type == CCB_TERMINAL_GT)
+        {
+            if (grammarData->id != currFirstKSeq[matchedCount])
+            {
+                return false;
+            }
+            matchedCount++;
+            currNode = currNode->next;
+        }
+        else
+        {
+            CCB_nonterminal_t nonterminal = grammarData->id;
+            ProductionsHashMapEntry *entry;
+
+            if (HashMap__getItem(
+                    productions,
+                    &nonterminal,
+                    sizeof(CCB_nonterminal_t),
+                    (void **)&entry) <= CBR_ERROR)
+            {
+                return false;
+            }
+
+            DoublyLinkedListNode *prodNode = entry->head;
+            DoublyLinkedListNode *expandedNode = NULL;
+
+            for (; prodNode != NULL; prodNode = prodNode->next)
+            {
+                ProductionData *prodData = prodNode->value;
+                if (prodData->rightHandHead != NULL)
+                {
+                    GrammarData *firstElem = (GrammarData *)prodData->rightHandHead->value;
+                    if (firstElem->id != CCB_EMPTY_STRING_TR)
+                    {
+                        expandedNode = prodData->rightHandHead;
+                        break;
+                    }
+                }
+            }
+
+            if (expandedNode == NULL)
+            {
+                return false;
+            }
+
+            currNode = expandedNode;
+        }
+    }
+
+    return matchedCount == k;
+}
+
+int8_t PrdcPrsnTble__getItem(
+    PrdcPrsnTble *self,
+    CCB_nonterminal_t nonterminal,
+    CCB_terminal_t *kSeq,
+    uint8_t k,
+    CCB_production_t *production)
+{
+    CCB_production_t *prodPtr = NULL;
+    
+    if (HashMap__getItem(
+            (HashMap *)self[nonterminal],
+            kSeq,
+            sizeof(CCB_terminal_t) * k,
+            (void **) &prodPtr) <= CBR_ERROR)
+    {
+        fprintf(stderr, "Failed to get rule for nonterminal NT%d\n", nonterminal);
+        return CCB_ERROR;
+    }
+
+    if (prodPtr == NULL)
+    {
+        *production = (CCB_production_t)-1;  // Indicate not found
+    }
+    else
+    {
+        *production = *prodPtr;
+    }
+
+    return CCB_SUCCESS;
+}
+
+int8_t PrdcPrsnTble__setItem(
+    PrdcPrsnTble *self,
+    CCB_nonterminal_t nonterminal,
+    CCB_terminal_t *kSeq,
+    uint8_t k,
+    CCB_production_t production)
+{
+    CCB_production_t *prodPtr = malloc(sizeof(CCB_production_t));
+    if (prodPtr == NULL)
+    {
+        fprintf(stderr, "Failed to allocate production for nonterminal NT%d\n", nonterminal);
+        return CCB_ERROR;
+    }
+    *prodPtr = production;
+
+    if (HashMap__setItem(
+            (HashMap *)self[nonterminal],
+            kSeq,
+            k * sizeof(CCB_terminal_t),
+            prodPtr,
+            sizeof(CCB_production_t)) <= CBR_ERROR)
+    {
+        fprintf(stderr, "Failed to set rule for nonterminal NT%d\n", nonterminal);
+        free(prodPtr);
+        return CCB_ERROR;
+    }
+
+    return CCB_SUCCESS;
+}
+
+static int8_t sSetPrdc4NtNTrInPrdcPrsnTble(
+    PrdcPrsnTble *prdtPrsnTable,
     CCB_production_t rule,
     CCB_nonterminal_t nonterminal,
-    CCB_terminal_t terminal,
-    ProductionData **productions)
+    CCB_terminal_t *kSeq,
+    ProductionsHashMap *productions,
+    uint8_t k)
 {
-    if (prdtPrsnTable[nonterminal][terminal] > CCB_ERROR_PR)
+    CCB_production_t existingRule;
+
+    if (PrdcPrsnTble__getItem(
+            prdtPrsnTable,
+            nonterminal,
+            kSeq,
+            k,
+            &existingRule) <= CCB_ERROR)
     {
-        CCB_production_t existingRule = prdtPrsnTable[nonterminal][terminal];
-        uint8_t existingYieldsEpsilon = sProductionYieldsEpsilon(productions[existingRule]);
-        uint8_t newYieldsEpsilon = sProductionYieldsEpsilon(productions[rule]);
+        return CCB_ERROR;
+    }
+
+    if (existingRule != (CCB_production_t)-1)
+    {
+        uint8_t existingYieldsEpsilon = sProductionYieldsEpsilon(
+            productions,
+            nonterminal,
+            existingRule);
+        uint8_t newYieldsEpsilon = sProductionYieldsEpsilon(
+            productions,
+            nonterminal,
+            rule);
 
         if (existingYieldsEpsilon && !newYieldsEpsilon)
         {
-            prdtPrsnTable[nonterminal][terminal] = rule;
+            if (PrdcPrsnTble__setItem(
+                    prdtPrsnTable,
+                    nonterminal,
+                    kSeq,
+                    k,
+                    rule) <= CCB_ERROR)
+            {
+                return CCB_ERROR;
+            }
+
             return CCB_SUCCESS;
         }
         else if (!existingYieldsEpsilon && newYieldsEpsilon)
         {
             return CCB_SUCCESS;
         }
+
         else
         {
             fprintf(
                 stderr,
-                "A collision was found for rule %d, nonterminal %d and terminal %d\n",
+                "A collision was found for rule P%d and nonterminal NT%d\n",
                 rule,
-                nonterminal,
-                terminal);
+                nonterminal);
             return CCB_ERROR;
         }
     }
 
-    prdtPrsnTable[nonterminal][terminal] = rule;
+    if (PrdcPrsnTble__setItem(prdtPrsnTable, nonterminal, kSeq, k, rule) <= CCB_ERROR)
+    {
+        return CCB_ERROR;
+    }
 
     return CCB_SUCCESS;
 }
 
 static int8_t sPopulatePrdtPrsnTable(
-    CCB_production_t **prdtPrsnTable,
+    PrdcPrsnTble *prdtPrsnTable,
     FirstFollowEntry **first,
     FirstFollowEntry **follow,
-    ProductionData **productions)
+    ProductionsHashMap *productions,
+    uint8_t k)
 {
-    for (uint8_t prdcIndex = 0; prdcIndex < CCB_NUM_OF_PRODUCTIONS; prdcIndex++)
+    for (uint8_t prdcIndex = 0; prdcIndex < productions->nentries; prdcIndex++)
     {
-        ProductionData *productionData = productions[prdcIndex];
-        CCB_nonterminal_t productionNonterminal = productionData->leftHand;
+        DoublyLinkedListNode *currNode = ((ProductionsHashMapEntry *)HashMap__getEntries(
+                                              productions)[prdcIndex]
+                                              ->value)
+                                             ->head;
 
-        GrammarData *firstElement = (GrammarData *)productionData->rightHandHead->value;
-        CCB_grammar_t firstTerminalOfProduction = firstElement->id;
-
-        if (firstTerminalOfProduction == CCB_EMPTY_STRING_TR)
+        for (; currNode != NULL; currNode = currNode->next)
         {
-            FirstFollowEntry *followEntryForNonterminal = follow[productionNonterminal];
+            ProductionData *currProdData = currNode->value;
+            CCB_nonterminal_t productionNonterminal = currProdData->leftHand;
 
-            SinglyLinkedListNode *currFollowNode = followEntryForNonterminal->entriesHead;
-            while (currFollowNode != NULL)
+            GrammarData *firstElement = (GrammarData *)currProdData->rightHandHead->value;
+            CCB_grammar_t firstTerminalOfProduction = firstElement->id;
+
+            if (firstTerminalOfProduction == CCB_EMPTY_STRING_TR)
             {
-                CCB_terminal_t currFollowTerminal = *(CCB_terminal_t *)currFollowNode->value;
+                FirstFollowEntry *followEntryForNonterminal = follow[productionNonterminal];
 
-                if (sSetPrdc4NtNTrInPrdtPrsnTable(
-                        prdtPrsnTable, productionData->id,
-                        productionNonterminal,
-                        currFollowTerminal,
-                        productions) == CCB_ERROR)
+                SinglyLinkedListNode *currFollowNode = followEntryForNonterminal->entriesHead;
+                for (; currFollowNode != NULL; currFollowNode = currFollowNode->next)
                 {
-                    return CCB_ERROR;
-                }
+                    CCB_terminal_t *currFollowKSeq = currFollowNode->value;
 
-                currFollowNode = currFollowNode->next;
-            }
-        }
-        else
-        {
-            FirstFollowEntry *firstEntryForNonterminal = first[productionNonterminal];
-            uint8_t didProductionMatched = 0;
-
-            SinglyLinkedListNode *currFirstNode = firstEntryForNonterminal->entriesHead;
-            while (currFirstNode != NULL)
-            {
-                CCB_terminal_t currFirstTerminal = *(CCB_terminal_t *)currFirstNode->value;
-
-                if (firstTerminalOfProduction == currFirstTerminal)
-                {
-                    if (sSetPrdc4NtNTrInPrdtPrsnTable(
+                    if (sSetPrdc4NtNTrInPrdcPrsnTble(
                             prdtPrsnTable,
-                            productionData->id,
+                            currProdData->id,
                             productionNonterminal,
-                            currFirstTerminal,
-                            productions) == CCB_ERROR)
+                            currFollowKSeq,
+                            productions,
+                            k) <= CCB_ERROR)
                     {
                         return CCB_ERROR;
                     }
+                }
+            }
+            else
+            {
+                FirstFollowEntry *firstEntryForNonterminal = first[productionNonterminal];
+                uint8_t didProductionMatched = 0;
 
-                    didProductionMatched = 1;
-                    break;
+                SinglyLinkedListNode *currFirstNode = firstEntryForNonterminal->entriesHead;
+
+                for (; currFirstNode != NULL; currFirstNode = currFirstNode->next)
+                {
+                    CCB_terminal_t *currFirstKSeq = currFirstNode->value;
+
+                    if (sDoesProductionMatchesFirstEntry(
+                            currProdData,
+                            currFirstKSeq,
+                            k,
+                            productions))
+                    {
+                        if (sSetPrdc4NtNTrInPrdcPrsnTble(
+                                prdtPrsnTable,
+                                currProdData->id,
+                                productionNonterminal,
+                                currFirstKSeq,
+                                productions,
+                                k) <= CCB_ERROR)
+                        {
+                            return CCB_ERROR;
+                        }
+
+                        didProductionMatched = 1;
+                        break;
+                    }
                 }
 
-                currFirstNode = currFirstNode->next;
-            }
-
-            if (!didProductionMatched)
-            {
-                fprintf(
-                    stderr,
-                    "No entry in FIRST matched production %d\n",
-                    productionData->id);
-                return CCB_ERROR;
+                if (!didProductionMatched)
+                {
+                    fprintf(
+                        stderr,
+                        "No entry in FIRST matched production %d\n",
+                        currProdData->id);
+                    return CCB_ERROR;
+                }
             }
         }
     }
@@ -136,7 +337,7 @@ void PrdcPrsnTble__del(PrdcPrsnTble *self)
 {
     for (uint8_t prdcPrsnTbleIndex = 0; prdcPrsnTbleIndex < CCB_NUM_OF_NONTERMINALS; prdcPrsnTbleIndex++)
     {
-        free(self[prdcPrsnTbleIndex]);
+        HashMap__del((HashMap *)self[prdcPrsnTbleIndex]);
     }
 
     free(self);
@@ -184,11 +385,18 @@ void PrdcPrsnTble__log(PrdcPrsnTble *self)
 
         for (uint8_t terminal = 0; terminal < CCB_NUM_OF_TERMINALS; terminal++)
         {
-            CCB_production_t production = self[nonterminal][terminal];
+            CCB_terminal_t terminalSeq[1] = {terminal};
+            CCB_production_t *productionPtr = NULL;
 
-            if (production != CCB_ERROR_PR)
+            HashMap__getItem(
+                (HashMap *)self[nonterminal],
+                terminalSeq,
+                sizeof(CCB_terminal_t),
+                (void **) &productionPtr);
+
+            if (productionPtr != NULL)
             {
-                offset += snprintf(tableStr + offset, bufferSize - offset, " P%-3d |", production);
+                offset += snprintf(tableStr + offset, bufferSize - offset, " P%-3d |", *productionPtr);
             }
             else
             {
@@ -203,31 +411,31 @@ void PrdcPrsnTble__log(PrdcPrsnTble *self)
     ClnLogger__del(logger);
 }
 
-PrdcPrsnTble *PrdcPrsnTble__new(ProductionData **productions)
+PrdcPrsnTble *PrdcPrsnTble__new(ProductionsHashMap *productions, uint8_t k)
 {
-    FirstFollowEntry **first = buildFirst(productions);
+    FirstFollowEntry **first = First__new(productions, k);
 
     if (first == NULL)
     {
         return NULL;
     }
 
-    FirstFollowEntry **follow = buildFollow(productions, first);
+    FirstFollowEntry **follow = Follow__new(productions, first, k);
 
     if (follow == NULL)
     {
-        destroyFirstFollow(first);
+        FirstFollow__del(first);
         return NULL;
     }
 
-    CCB_production_t **prdtPrsnTable = malloc(
-        sizeof(CCB_production_t **) * CCB_NUM_OF_NONTERMINALS);
+    PrdcPrsnTble *prdtPrsnTable = malloc(
+        sizeof(PrdcPrsnTble) * CCB_NUM_OF_NONTERMINALS);
 
     if (prdtPrsnTable == NULL)
     {
         fprintf(stderr, "Failed to allocate memory for the predictive parsing table\n");
-        destroyFirstFollow(first);
-        destroyFirstFollow(follow);
+        FirstFollow__del(first);
+        FirstFollow__del(follow);
         return NULL;
     }
 
@@ -235,8 +443,7 @@ PrdcPrsnTble *PrdcPrsnTble__new(ProductionData **productions)
          nonTerminalSlot < CCB_NUM_OF_NONTERMINALS;
          nonTerminalSlot++)
     {
-        prdtPrsnTable[nonTerminalSlot] = malloc(
-            sizeof(CCB_production_t *) * CCB_NUM_OF_TERMINALS);
+        prdtPrsnTable[nonTerminalSlot] = HashMap__new(LOG2_MINSIZE);
 
         if (prdtPrsnTable[nonTerminalSlot] == NULL)
         {
@@ -244,30 +451,19 @@ PrdcPrsnTble *PrdcPrsnTble__new(ProductionData **productions)
                 stderr,
                 "Failed to allocate memory for the nonterminal %d in the predictive parsing table\n",
                 nonTerminalSlot);
-            destroyFirstFollow(first);
-            destroyFirstFollow(follow);
+            FirstFollow__del(follow);
+            FirstFollow__del(first);
+            PrdcPrsnTble__del(prdtPrsnTable);
 
-            for (uint8_t allocatedNonTerminalSlot = 0;
-                 allocatedNonTerminalSlot < nonTerminalSlot;
-                 allocatedNonTerminalSlot++)
-            {
-                free(prdtPrsnTable[allocatedNonTerminalSlot]);
-            }
-
-            free(prdtPrsnTable);
             return NULL;
         }
-
-        memset(prdtPrsnTable[nonTerminalSlot],
-               CCB_ERROR_PR,
-               sizeof(CCB_production_t *) * CCB_NUM_OF_TERMINALS);
     }
 
     if (sPopulatePrdtPrsnTable(
-            prdtPrsnTable, first, follow, productions) == CCB_ERROR)
+            prdtPrsnTable, first, follow, productions, k) == CCB_ERROR)
     {
-        destroyFirstFollow(first);
-        destroyFirstFollow(follow);
+        FirstFollow__del(follow);
+        FirstFollow__del(first);
         PrdcPrsnTble__del(prdtPrsnTable);
         return NULL;
     }

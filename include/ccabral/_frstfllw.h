@@ -3,33 +3,40 @@
 
 #include <stdlib.h>
 #include <cbarroso/sngllnkdlist.h>
-#include "prdcdata.h"
-#include "types.h"
 #include "constants.h"
+#include "prdcdata.h"
+#include "prdsmap.h"
+#include "types.h"
 
+/* Holds the head and tail of a singly linked list of `k`-sized arrays */
 typedef struct FirstFollowEntry
 {
     SinglyLinkedListNode *entriesHead;
     SinglyLinkedListNode *entriesTail;
 } FirstFollowEntry;
 
-FirstFollowEntry **buildFirst(ProductionData **productions);
-FirstFollowEntry **buildFollow(ProductionData **productions, FirstFollowEntry **first);
+/* An array of `FirstFollowEntry`s */
+typedef FirstFollowEntry *FirstFollow;
 
-static inline void destroyFirstFollow(FirstFollowEntry **firstFollow)
-{
-    for (uint8_t firstFollowIndex = 0;
-         firstFollowIndex < CCB_NUM_OF_NONTERMINALS;
-         firstFollowIndex++)
-    {
-        if (firstFollow[firstFollowIndex]->entriesHead != NULL)
-        {
-            SinglyLinkedListNode__del(firstFollow[firstFollowIndex]->entriesHead);
-        }
-        free(firstFollow[firstFollowIndex]);
-    }
+void FirstFollow__del(FirstFollow *self);
+FirstFollowEntry *FirstFollowEntry__new();
 
-    free(firstFollow);
-}
+int8_t FirstFollowEntry__insert(
+    FirstFollowEntry *self,
+    CCB_terminal_t *kTerminals,
+    size_t sizeOfKTerminals);
+
+/* Creates the FIRST table: a table mapping each nonterminal to the first `k`
+terminals each of its rules derive to */
+FirstFollow *First__new(ProductionsHashMap *productions, uint8_t k);
+
+/* Creates the FOLLOW table: a table mapping each nonterminal to `k`
+terminals. It looks into all productions that nonterminal appears in the right hand
+side. If there are up to `k` terminals after or that the nonterminals after it derive
+to, they will be mapped to it */
+FirstFollow *Follow__new(
+    ProductionsHashMap *productions,
+    FirstFollow *first,
+    uint8_t k);
 
 #endif

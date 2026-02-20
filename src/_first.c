@@ -1,96 +1,191 @@
-#include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <cbarroso/hashmap.h>
+#include <cbarroso/sngllnkdlist.h>
 #include <ccabral/_frstfllw.h>
 #include <ccabral/_grmmdata.h>
 #include <ccabral/_prdcdata.h>
+#include <ccabral/_prdsmap.h>
 #include <ccabral/constants.h>
 
-static bool isTerminalInList(SinglyLinkedListNode *list, CCB_terminal_t terminal)
+static int8_t sInsertNewTerminalFromCurrGrammar(
+    DoublyLinkedListNode *currRightHandNode,
+    CCB_terminal_t *kSeq,
+    size_t *kSeqSizePtr,
+    ProductionsHashMap *productions)
 {
-    SinglyLinkedListNode *node = list;
-    while (node != NULL)
+    GrammarData *currGrammar = currRightHandNode->value;
+
+    if (currGrammar->type == CCB_TERMINAL_GT)
     {
-        CCB_terminal_t *value = (CCB_terminal_t *)node->value;
-        if (*value == terminal)
-        {
-            return true;
-        }
-        node = node->next;
+        kSeq[*kSeqSizePtr] = currGrammar->id;
     }
-    return false;
+
+    if (currGrammar->type == CCB_NONTERMINAL_GT)
+    {
+        ProductionsHashMapEntry *productionEntry;
+
+        if (HashMap__getItem(
+                productions,
+                &(currGrammar->id),
+                sizeof(CCB_nonterminal_t),
+                (void **)&productionEntry) <= CBR_ERROR)
+        {
+            fprintf(
+                stderr,
+                "Failed to get production for nonterminal NT%d",
+                currGrammar->id);
+            return CCB_ERROR;
+        }
+
+        for (
+            DoublyLinkedListNode *currSubProductionEntry = productionEntry->head;
+            currSubProductionEntry != NULL;
+            currSubProductionEntry = currSubProductionEntry->next)
+        {
+            GrammarData *currSubProdFirstGrammar = ((ProductionData *)currSubProductionEntry //
+                                                        ->value)
+                                                       ->rightHandHead->value;
+
+            if (!GrammarData__isEmptyString(currSubProdFirstGrammar))
+            {
+                productionEntry->tail->next = currRightHandNode->next;
+                currRightHandNode->next = currSubProductionEntry;
+                break;
+            }
+        }
+    }
+
+    (*kSeqSizePtr)++;
+
+    return CCB_SUCCESS;
 }
 
-FirstFollowEntry **buildFirst(ProductionData **productions)
+static int8_t sInsertTerminalsFromProd(
+    ProductionsHashMap *productions,
+    FirstFollowEntry *entry,
+    ProductionData *currProduction,
+    uint8_t k)
 {
-    FirstFollowEntry **first = malloc(sizeof(FirstFollowEntry *) * CCB_NUM_OF_NONTERMINALS);
+    size_t kSeqSize = 0;
+    CCB_terminal_t kSeq[k];
+
+    memset(kSeq, 0x0, k * sizeof(CCB_terminal_t));
+
+    for (
+        DoublyLinkedListNode *currRightHandNode = currProduction->rightHandHead;
+        currRightHandNode != NULL;
+        currRightHandNode = currRightHandNode->next)
+    {
+        if (sInsertNewTerminalFromCurrGrammar(
+                currRightHandNode,
+                kSeq,
+                &kSeqSize,
+                productions) <= CCB_ERROR)
+        {
+            GrammarData *currGrammar = currRightHandNode->value;
+            fprintf(
+                stderr,
+                "Failed to process grammar {id=%d, type=%d}\n",
+                currGrammar->id,
+                currGrammar->type);
+
+            return CCB_ERROR;
+        }
+
+        if (kSeqSize >= k)
+        {
+            break;
+        }
+    }
+
+    if (FirstFollowEntry__insert(
+            entry,
+            kSeq,
+            kSeqSize * sizeof(CCB_terminal_t)) <= CCB_ERROR)
+    {
+        fprintf(stderr, "Failed to insert terminals into first/follow entry\n");
+        return CCB_ERROR;
+    }
+
+    return CCB_SUCCESS;
+}
+
+static int8_t sFirst__insertTerminalsFromNonterminal(
+    FirstFollow *self,
+    ProductionsHashMap *productions,
+    HashMapEntry *currMapEntry,
+    uint8_t k)
+{
+    ProductionsHashMap *productionsCopy = ProductionsHashMap__deepCopy(productions);
+
+    if (productionsCopy == NULL)
+    {
+        fprintf(stderr, "Failed to copy productions");
+        return CCB_ERROR;
+    }
+
+    CCB_nonterminal_t nonterminal = *(CCB_nonterminal_t *)(currMapEntry->key);
+
+    self[nonterminal] = FirstFollowEntry__new();
+
+    if (self[nonterminal] == NULL)
+    {
+        return CCB_ERROR;
+    }
+
+    DoublyLinkedListNode *currNode = ((ProductionsHashMapEntry *)currMapEntry //
+                                          ->value)
+                                         ->head;
+
+    for (; currNode != NULL; currNode = currNode->next)
+    {
+        if (sInsertTerminalsFromProd(
+                productionsCopy,
+                self[nonterminal],
+                currNode->value,
+                k) <= CCB_ERROR)
+        {
+            return CCB_ERROR;
+        }
+    }
+
+    ProductionsHashMap__del(productionsCopy);
+
+    return CCB_SUCCESS;
+}
+
+FirstFollow *First__new(ProductionsHashMap *productions, uint8_t k)
+{
+    CCB_nonterminal_t visited[CCB_NUM_OF_NONTERMINALS];
+    FirstFollow *first = malloc(sizeof(FirstFollowEntry *) * CCB_NUM_OF_NONTERMINALS);
 
     if (first == NULL)
     {
-        fprintf(stderr, "Failed to allocate memory for FIRST\n");
+        fprintf(stderr, "Failed to allocate memory for first/follow table\n");
         return NULL;
     }
 
-    // Initialize all FIRST sets
-    for (uint8_t i = 0; i < CCB_NUM_OF_NONTERMINALS; i++)
+    memset(visited, 0x0, CCB_NUM_OF_NONTERMINALS * sizeof(CCB_nonterminal_t));
+
+    HashMapEntry **productionEntries = HashMap__getEntries(productions);
+
+    for (
+        uint8_t productionEntriesIdx = 0;
+        productionEntriesIdx < productions->nentries;
+        productionEntriesIdx++)
     {
-        first[i] = malloc(sizeof(FirstFollowEntry));
-        if (first[i] == NULL)
+        if (sFirst__insertTerminalsFromNonterminal(
+                first,
+                productions,
+                productionEntries[productionEntriesIdx],
+                k) <= CCB_ERROR)
         {
-            fprintf(stderr, "Failed to allocate memory for FIRST entry %d\n", i);
-            for (uint8_t j = 0; j < i; j++)
-            {
-                if (first[j]->entriesHead != NULL)
-                {
-                    SinglyLinkedListNode__del(first[j]->entriesHead);
-                }
-                free(first[j]);
-            }
-            free(first);
+            fprintf(stderr, "Failed to process production");
+            FirstFollow__del(first);
             return NULL;
-        }
-        first[i]->entriesHead = NULL;
-        first[i]->entriesTail = NULL;
-    }
-
-    // Compute FIRST sets from productions
-    for (uint8_t prodIdx = 0; prodIdx < CCB_NUM_OF_PRODUCTIONS; prodIdx++)
-    {
-        ProductionData *prod = productions[prodIdx];
-        CCB_nonterminal_t leftNT = prod->leftHand;
-
-        // Get first symbol on right-hand side
-        if (prod->rightHandHead != NULL)
-        {
-            GrammarData *firstSymbol = (GrammarData *)prod->rightHandHead->value;
-
-            if (firstSymbol->type == CCB_TERMINAL_GT)
-            {
-                // If first symbol is terminal, add to FIRST set
-                CCB_terminal_t terminal = (CCB_terminal_t)firstSymbol->id;
-                if (!isTerminalInList(first[leftNT]->entriesHead, terminal))
-                {
-                    CCB_terminal_t *terminalPtr = malloc(sizeof(CCB_terminal_t));
-                    if (terminalPtr == NULL)
-                    {
-                        fprintf(stderr, "Failed to allocate memory for terminal\n");
-                        continue;
-                    }
-                    *terminalPtr = terminal;
-                    
-                    if (first[leftNT]->entriesHead == NULL)
-                    {
-                        first[leftNT]->entriesHead = SinglyLinkedListNode__new(terminalPtr, sizeof(CCB_terminal_t));
-                        first[leftNT]->entriesTail = first[leftNT]->entriesHead;
-                    }
-                    else
-                    {
-                        first[leftNT]->entriesTail->next = SinglyLinkedListNode__new(terminalPtr, sizeof(CCB_terminal_t));
-                        first[leftNT]->entriesTail = first[leftNT]->entriesTail->next;
-                    }
-                }
-            }
         }
     }
 
