@@ -8,11 +8,13 @@
 #include "prdsmap.h"
 #include "types.h"
 
+typedef SinglyLinkedListNode FirstFollowEntryNode;
+
 /* Holds the head and tail of a singly linked list of `k`-sized arrays */
 typedef struct FirstFollowEntry
 {
-    SinglyLinkedListNode *entriesHead;
-    SinglyLinkedListNode *entriesTail;
+    FirstFollowEntryNode *entriesHead;
+    FirstFollowEntryNode *entriesTail;
 } FirstFollowEntry;
 
 /* An array of `FirstFollowEntry`s */
@@ -26,6 +28,8 @@ int8_t FirstFollowEntry__insert(
     CCB_terminal_t *kTerminals,
     size_t sizeOfKTerminals);
 
+char *FirstFollowEntry__str(FirstFollowEntry *self, uint8_t k);
+
 /* Creates the FIRST table: a table mapping each nonterminal to the first `k`
 terminals each of its rules derive to */
 FirstFollow *First__new(ProductionsHashMap *productions, uint8_t k);
@@ -38,5 +42,7 @@ FirstFollow *Follow__new(
     ProductionsHashMap *productions,
     FirstFollow *first,
     uint8_t k);
+
+char *FirstFollow__str(FirstFollow *self, uint8_t k);
 
 #endif

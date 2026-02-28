@@ -59,13 +59,13 @@ target_link_libraries(your_target PRIVATE ccabral::ccabral)
 
 ### Build Options
 
-- `CCB_BUILD_EXAMPLE` - Build the example executable (default: OFF)
+- `CCB_BUILD_EXAMPLES` - Build the example executable (default: OFF)
 - `CCB_BUILD_TESTING` - Build the test suite (default: OFF)
 
 Example with options:
 
 ```bash
-cmake -DCCB_BUILD_EXAMPLE=ON -DCCB_BUILD_TESTING=ON ..
+cmake -DCCB_BUILD_EXAMPLES=ON -DCCB_BUILD_TESTING=ON ..
 make
 ```
 
@@ -188,7 +188,7 @@ A complete working example is available in the [example/main.c](example/main.c) 
 ```bash
 mkdir build
 cd build
-cmake -DCCB_BUILD_EXAMPLE=ON ..
+cmake -DCCB_BUILD_EXAMPLES=ON ..
 make
 ./ccabral_example
 ```

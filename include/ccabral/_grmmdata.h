@@ -12,5 +12,7 @@ typedef struct GrammarData
 
 bool GrammarData__isEndOfText(GrammarData *self);
 bool GrammarData__isEmptyString(GrammarData *self);
+char *GrammarData__str(GrammarData *self);
+bool isGrammarValid(CCB_grammar_t grammarId, CCB_grammartype_t grammarType);
 
 #endif

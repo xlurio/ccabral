@@ -4,6 +4,8 @@
 #include <string.h>
 #include <cbarroso/hashmap.h>
 #include <cbarroso/sngllnkdlist.h>
+#include <clinschoten/constants.h>
+#include <clinschoten/logger.h>
 #include <ccabral/_frstfllw.h>
 #include <ccabral/_grmmdata.h>
 #include <ccabral/_prdcdata.h>
@@ -14,13 +16,16 @@ static int8_t sInsertNewTerminalFromCurrGrammar(
     DoublyLinkedListNode *currRightHandNode,
     CCB_terminal_t *kSeq,
     size_t *kSeqSizePtr,
-    ProductionsHashMap *productions)
+    ProductionsHashMap *productions,
+    DoublyLinkedListNode **nextNodePtr)
 {
     GrammarData *currGrammar = currRightHandNode->value;
 
     if (currGrammar->type == CCB_TERMINAL_GT)
     {
         kSeq[*kSeqSizePtr] = currGrammar->id;
+        (*kSeqSizePtr)++;
+        *nextNodePtr = currRightHandNode->next;
     }
 
     if (currGrammar->type == CCB_NONTERMINAL_GT)
@@ -45,20 +50,16 @@ static int8_t sInsertNewTerminalFromCurrGrammar(
             currSubProductionEntry != NULL;
             currSubProductionEntry = currSubProductionEntry->next)
         {
-            GrammarData *currSubProdFirstGrammar = ((ProductionData *)currSubProductionEntry //
-                                                        ->value)
-                                                       ->rightHandHead->value;
+            ProductionData *currSubProduction = (ProductionData *)currSubProductionEntry->value;
+            GrammarData *currSubProdFirstGrammar = currSubProduction->rightHandHead->value;
 
             if (!GrammarData__isEmptyString(currSubProdFirstGrammar))
             {
-                productionEntry->tail->next = currRightHandNode->next;
-                currRightHandNode->next = currSubProductionEntry;
+                *nextNodePtr = currSubProduction->rightHandHead;
                 break;
             }
         }
     }
-
-    (*kSeqSizePtr)++;
 
     return CCB_SUCCESS;
 }
@@ -74,16 +75,18 @@ static int8_t sInsertTerminalsFromProd(
 
     memset(kSeq, 0x0, k * sizeof(CCB_terminal_t));
 
-    for (
-        DoublyLinkedListNode *currRightHandNode = currProduction->rightHandHead;
-        currRightHandNode != NULL;
-        currRightHandNode = currRightHandNode->next)
+    DoublyLinkedListNode *currRightHandNode = currProduction->rightHandHead;
+    
+    while (currRightHandNode != NULL && kSeqSize < k)
     {
+        DoublyLinkedListNode *nextNode = NULL;
+        
         if (sInsertNewTerminalFromCurrGrammar(
                 currRightHandNode,
                 kSeq,
                 &kSeqSize,
-                productions) <= CCB_ERROR)
+                productions,
+                &nextNode) <= CCB_ERROR)
         {
             GrammarData *currGrammar = currRightHandNode->value;
             fprintf(
@@ -95,10 +98,7 @@ static int8_t sInsertTerminalsFromProd(
             return CCB_ERROR;
         }
 
-        if (kSeqSize >= k)
-        {
-            break;
-        }
+        currRightHandNode = nextNode;
     }
 
     if (FirstFollowEntry__insert(
@@ -123,7 +123,7 @@ static int8_t sFirst__insertTerminalsFromNonterminal(
 
     if (productionsCopy == NULL)
     {
-        fprintf(stderr, "Failed to copy productions");
+        fprintf(stderr, "Failed to copy productions\n");
         return CCB_ERROR;
     }
 
@@ -160,15 +160,13 @@ static int8_t sFirst__insertTerminalsFromNonterminal(
 FirstFollow *First__new(ProductionsHashMap *productions, uint8_t k)
 {
     CCB_nonterminal_t visited[CCB_NUM_OF_NONTERMINALS];
-    FirstFollow *first = malloc(sizeof(FirstFollowEntry *) * CCB_NUM_OF_NONTERMINALS);
+    FirstFollow *first = calloc(sizeof(FirstFollowEntry *), CCB_NUM_OF_NONTERMINALS);
 
     if (first == NULL)
     {
         fprintf(stderr, "Failed to allocate memory for first/follow table\n");
         return NULL;
     }
-
-    memset(visited, 0x0, CCB_NUM_OF_NONTERMINALS * sizeof(CCB_nonterminal_t));
 
     HashMapEntry **productionEntries = HashMap__getEntries(productions);
 
@@ -183,11 +181,44 @@ FirstFollow *First__new(ProductionsHashMap *productions, uint8_t k)
                 productionEntries[productionEntriesIdx],
                 k) <= CCB_ERROR)
         {
-            fprintf(stderr, "Failed to process production");
+            fprintf(stderr, "Failed to process production\n");
             FirstFollow__del(first);
             return NULL;
         }
     }
+
+    ClnLogger *logger = ClnLogger__new("_first.c", 11);
+
+    if (logger == NULL)
+    {
+        fprintf(
+            stderr,
+            "Failed to create logger '_first.c'");
+
+        FirstFollow__del(first);
+        return NULL;
+    }
+
+    char *firstStr = FirstFollow__str(first, k);
+
+    if (firstStr == NULL)
+    {
+        fprintf(stderr, "Failed to strigify FIRST table");
+
+        FirstFollow__del(first);
+        ClnLogger__del(logger);
+        return NULL;
+    }
+
+    ClnLogger__log(
+        logger,
+        CLN_DEBUG_LL,
+        "FIRST:\n%s",
+        9 + sizeof(firstStr),
+        firstStr);
+
+    free(firstStr);
+    ClnLogger__del(logger);
 
     return first;
 }

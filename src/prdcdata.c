@@ -1,5 +1,9 @@
+#include <assert.h>
 #include <stdio.h>
+#include <stdbool.h>
+#include <unistd.h>
 #include <stdlib.h>
+#include <string.h>
 #include <cbarroso/dblylnkdlist.h>
 #include <ccabral/_grmmdata.h>
 #include <ccabral/_prdcdata.h>
@@ -9,10 +13,19 @@
 ProductionData *ProductionData__new(
     CCB_production_t id,
     CCB_nonterminal_t leftHandNonTerminal,
-    CCB_grammar_t firstRightHandGrammar,
-    CCB_grammartype_t firstRightHandGrammarType)
+    CCB_terminal_t firstRightHandGrammar)
 {
-    ProductionData *production = malloc(sizeof(ProductionData));
+    if (!isGrammarValid(leftHandNonTerminal, CCB_NONTERMINAL_GT))
+    {
+        return NULL;
+    }
+
+    if (!isGrammarValid(firstRightHandGrammar, CCB_TERMINAL_GT))
+    {
+        return NULL;
+    }
+
+    ProductionData *production = calloc(1, sizeof(ProductionData));
     if (production == NULL)
     {
         fprintf(stderr, "Failed to allocate memory for production\n");
@@ -22,7 +35,7 @@ ProductionData *ProductionData__new(
     production->id = id;
     production->leftHand = leftHandNonTerminal;
 
-    GrammarData *grammarData = malloc(sizeof(GrammarData));
+    GrammarData *grammarData = calloc(1, sizeof(GrammarData));
 
     if (grammarData == NULL)
     {
@@ -32,10 +45,10 @@ ProductionData *ProductionData__new(
     }
 
     grammarData->id = firstRightHandGrammar;
-    grammarData->type = firstRightHandGrammarType;
+    grammarData->type = CCB_TERMINAL_GT;
     production->rightHandHead = DoublyLinkedListNode__new(
         grammarData,
-        sizeof(GrammarData *));
+        sizeof(GrammarData));
 
     if (production->rightHandHead == NULL)
     {
@@ -51,10 +64,14 @@ ProductionData *ProductionData__new(
 
 int8_t ProductionData__insertRightHandGrammar(
     ProductionData *self,
-    CCB_grammar_t rightHandGrammar,
-    CCB_grammartype_t rightHandGrammarType)
+    CCB_nonterminal_t rightHandGrammar)
 {
-    GrammarData *grammarData = malloc(sizeof(GrammarData));
+    if (!isGrammarValid(rightHandGrammar, CCB_NONTERMINAL_GT))
+    {
+        return CCB_ERROR;
+    }
+
+    GrammarData *grammarData = calloc(1, sizeof(GrammarData));
 
     if (grammarData == NULL)
     {
@@ -63,11 +80,11 @@ int8_t ProductionData__insertRightHandGrammar(
     }
 
     grammarData->id = rightHandGrammar;
-    grammarData->type = rightHandGrammarType;
+    grammarData->type = CCB_NONTERMINAL_GT;
 
     if (DoublyLinkedListNode__insertAtTail(
             self->rightHandTail,
-            grammarData, sizeof(GrammarData *)) <= CCB_ERROR)
+            grammarData, sizeof(GrammarData)) <= CCB_ERROR)
     {
         fprintf(stderr, "Failed to insert right hand grammar\n");
         free(grammarData);
@@ -76,6 +93,92 @@ int8_t ProductionData__insertRightHandGrammar(
     self->rightHandTail = self->rightHandTail->next;
 
     return CCB_SUCCESS;
+}
+
+static char *sProductionData__rightHandStr(ProductionData *self)
+{
+    assert(self != NULL);
+
+    ssize_t maxLength = 128;
+    char *rightHandStr = calloc(maxLength, sizeof(char));
+
+    if (rightHandStr == NULL)
+    {
+        fprintf(
+            stderr,
+            "Failed to allocate memory to stringify P%d right hand side",
+            self->id);
+        return NULL;
+    }
+
+    for (
+        DoublyLinkedListNode *currentGrammarNode = self->rightHandHead;
+        currentGrammarNode != NULL || maxLength <= 0;
+        currentGrammarNode = currentGrammarNode->next)
+    {
+        if (currentGrammarNode->valueSize > sizeof(GrammarData))
+        {
+            strncat(rightHandStr, "corrupted", maxLength);
+            maxLength -= 10;
+            break;
+        }
+
+        char *currGrammarStr = GrammarData__str((GrammarData *) //
+                                                currentGrammarNode->value);
+
+        if (currGrammarStr == NULL)
+        {
+            fprintf(stderr, "Failed to stringify grammar\n");
+            return NULL;
+        }
+
+        strncat(rightHandStr, currGrammarStr, maxLength);
+        maxLength -= strlen(currGrammarStr);
+
+        if (maxLength >= 4 && currentGrammarNode->next != NULL)
+        {
+            strncat(rightHandStr, " -> ", maxLength);
+            maxLength -= 4;
+        }
+    }
+
+    return rightHandStr;
+}
+
+char *ProductionData__str(ProductionData *self)
+{
+    const ssize_t maxLength = 255;
+    char *prodDataStr = calloc(maxLength, sizeof(char));
+
+    if (prodDataStr == NULL)
+    {
+        fprintf(
+            stderr,
+            "Failed to allocate memory for the stringified P%d\n",
+            self->id);
+        return NULL;
+    }
+
+    char *rightHandStr = sProductionData__rightHandStr(self);
+
+    if (rightHandStr == NULL)
+    {
+        fprintf(
+            stderr,
+            "Failed to strigify production P%d right hand side\n",
+            self->id);
+        return NULL;
+    }
+
+    snprintf(
+        prodDataStr,
+        maxLength,
+        "ProductionData {id=P%d, leftHand=NT%d, rightHand={%s}}",
+        self->id,
+        self->leftHand,
+        rightHandStr);
+
+    return prodDataStr;
 }
 
 void ProductionData__del(ProductionData *self)

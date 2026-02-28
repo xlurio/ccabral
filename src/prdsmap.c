@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -41,19 +42,9 @@ int8_t ProductionsHashMap__initializeTerminal(ProductionsHashMap *self,
 
     entry->tail = entry->head;
 
-    CCB_nonterminal_t *keyPtr = malloc(sizeof(CCB_nonterminal_t));
-    if (keyPtr == NULL)
-    {
-        fprintf(stderr, "Failed to allocate key for NT%d", nonterminal);
-        DoublyLinkedListNode__del(entry->head);
-        free(entry);
-        return CCB_ERROR;
-    }
-    *keyPtr = nonterminal;
-
     if (HashMap__setItem(
             self,
-            keyPtr,
+            &nonterminal,
             sizeof(CCB_nonterminal_t),
             entry,
             sizeof(ProductionsHashMapEntry)) <= CBR_ERROR)
@@ -62,7 +53,6 @@ int8_t ProductionsHashMap__initializeTerminal(ProductionsHashMap *self,
             stderr,
             "Failed to map productions linked list to nonterminal NT%d",
             nonterminal);
-        free(keyPtr);
         DoublyLinkedListNode__del(entry->head);
         free(entry);
         return CCB_ERROR;

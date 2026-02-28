@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -51,65 +52,64 @@ static bool sDoesProductionMatchesFirstEntry(
     ProductionData *currProdData,
     CCB_terminal_t *currFirstKSeq,
     uint8_t k,
-    ProductionsHashMap *productions)
+    ProductionsHashMap *productions,
+    FirstFollow *first)
 {
-    DoublyLinkedListNode *currNode = currProdData->rightHandHead;
-    uint8_t matchedCount = 0;
+    assert(currFirstKSeq[0] != CCB_EMPTY_STRING_TR);
 
-    while (currNode != NULL && matchedCount < k)
+    DoublyLinkedListNode *currNode = currProdData->rightHandHead;
+    uint8_t firstEntryIndex = 0;
+
+    while (currNode != NULL //
+           && firstEntryIndex < k)
     {
+        if (currFirstKSeq[firstEntryIndex] == CCB_EMPTY_STRING_TR)
+        {
+            return true;
+        }
+
         GrammarData *grammarData = (GrammarData *)currNode->value;
 
         if (grammarData->type == CCB_TERMINAL_GT)
         {
-            if (grammarData->id != currFirstKSeq[matchedCount])
+            if (grammarData->id != currFirstKSeq[firstEntryIndex])
             {
                 return false;
             }
-            matchedCount++;
+            firstEntryIndex++;
             currNode = currNode->next;
         }
-        else
+        else if (grammarData->type == CCB_NONTERMINAL_GT)
         {
-            CCB_nonterminal_t nonterminal = grammarData->id;
-            ProductionsHashMapEntry *entry;
+            bool wasFound = false;
 
-            if (HashMap__getItem(
-                    productions,
-                    &nonterminal,
-                    sizeof(CCB_nonterminal_t),
-                    (void **)&entry) <= CBR_ERROR)
+            for (
+                FirstFollowEntryNode *currFirstEntry = //
+                first[grammarData->id]->entriesHead;
+                currFirstEntry != NULL;
+                currFirstEntry = currFirstEntry->next)
             {
-                return false;
-            }
+                CCB_terminal_t *currFirstEntryValue = currFirstEntry->value;
 
-            DoublyLinkedListNode *prodNode = entry->head;
-            DoublyLinkedListNode *expandedNode = NULL;
-
-            for (; prodNode != NULL; prodNode = prodNode->next)
-            {
-                ProductionData *prodData = prodNode->value;
-                if (prodData->rightHandHead != NULL)
+                if (currFirstEntryValue[0] == currFirstKSeq[firstEntryIndex])
                 {
-                    GrammarData *firstElem = (GrammarData *)prodData->rightHandHead->value;
-                    if (firstElem->id != CCB_EMPTY_STRING_TR)
-                    {
-                        expandedNode = prodData->rightHandHead;
-                        break;
-                    }
+                    firstEntryIndex++;
+                    currNode = currNode->next;
+                    wasFound = true;
+                    break;
                 }
             }
 
-            if (expandedNode == NULL)
+            if (!wasFound)
             {
                 return false;
             }
-
-            currNode = expandedNode;
         }
+        else
+            assert(false);
     }
 
-    return matchedCount == k;
+    return true;
 }
 
 int8_t PrdcPrsnTble__getItem(
@@ -120,12 +120,12 @@ int8_t PrdcPrsnTble__getItem(
     CCB_production_t *production)
 {
     CCB_production_t *prodPtr = NULL;
-    
+
     if (HashMap__getItem(
             (HashMap *)self[nonterminal],
             kSeq,
             sizeof(CCB_terminal_t) * k,
-            (void **) &prodPtr) <= CBR_ERROR)
+            (void **)&prodPtr) <= CBR_ERROR)
     {
         fprintf(stderr, "Failed to get rule for nonterminal NT%d\n", nonterminal);
         return CCB_ERROR;
@@ -133,7 +133,7 @@ int8_t PrdcPrsnTble__getItem(
 
     if (prodPtr == NULL)
     {
-        *production = (CCB_production_t)-1;  // Indicate not found
+        *production = (CCB_production_t)-1;
     }
     else
     {
@@ -288,11 +288,13 @@ static int8_t sPopulatePrdtPrsnTable(
             else
             {
                 FirstFollowEntry *firstEntryForNonterminal = first[productionNonterminal];
-                uint8_t didProductionMatched = 0;
+                uint8_t didProductionMatched = false;
 
-                SinglyLinkedListNode *currFirstNode = firstEntryForNonterminal->entriesHead;
-
-                for (; currFirstNode != NULL; currFirstNode = currFirstNode->next)
+                for (
+                    FirstFollowEntryNode *currFirstNode = firstEntryForNonterminal //
+                                                              ->entriesHead;
+                    currFirstNode != NULL;
+                    currFirstNode = currFirstNode->next)
                 {
                     CCB_terminal_t *currFirstKSeq = currFirstNode->value;
 
@@ -300,7 +302,8 @@ static int8_t sPopulatePrdtPrsnTable(
                             currProdData,
                             currFirstKSeq,
                             k,
-                            productions))
+                            productions,
+                            first))
                     {
                         if (sSetPrdc4NtNTrInPrdcPrsnTble(
                                 prdtPrsnTable,
@@ -313,7 +316,7 @@ static int8_t sPopulatePrdtPrsnTable(
                             return CCB_ERROR;
                         }
 
-                        didProductionMatched = 1;
+                        didProductionMatched = true;
                         break;
                     }
                 }
@@ -322,7 +325,7 @@ static int8_t sPopulatePrdtPrsnTable(
                 {
                     fprintf(
                         stderr,
-                        "No entry in FIRST matched production %d\n",
+                        "No entry in FIRST matched production P%d\n",
                         currProdData->id);
                     return CCB_ERROR;
                 }
@@ -345,69 +348,102 @@ void PrdcPrsnTble__del(PrdcPrsnTble *self)
 
 void PrdcPrsnTble__log(PrdcPrsnTble *self)
 {
-    const char *loggerName = "_prdcprsntabl";
+    const char *loggerName = "PrdcPrsnTble__log";
     ClnLogger *logger = ClnLogger__new(loggerName, strlen(loggerName));
 
-    // Calculate buffer size needed
-    size_t bufferSize = 10000; // Adjust as needed based on table size
-    char *tableStr = malloc(bufferSize);
-    if (tableStr == NULL)
+    if (logger == NULL)
     {
-        fprintf(stderr, "Failed to allocate memory for table string\n");
+        fprintf(stderr, "Failed to create logger '%s'\n", loggerName);
         return;
     }
 
-    size_t offset = 0;
-
-    // Add title
-    offset += snprintf(tableStr + offset, bufferSize - offset, "Predictive Parsing Table:\n");
-
-    // Print header
-    offset += snprintf(tableStr + offset, bufferSize - offset, "     |");
-    for (uint8_t terminal = 0; terminal < CCB_NUM_OF_TERMINALS; terminal++)
+    size_t bufferSize = 4096;
+    char *buffer = malloc(bufferSize);
+    if (buffer == NULL)
     {
-        offset += snprintf(tableStr + offset, bufferSize - offset, " T%-3d |", terminal);
+        ClnLogger__log(
+            logger,
+            CLN_ERROR_LL,
+            "Failed to allocate buffer for logging\n",
+            39);
+        ClnLogger__del(logger);
+        return;
     }
-    offset += snprintf(tableStr + offset, bufferSize - offset, "\n");
 
-    // Print separator
-    offset += snprintf(tableStr + offset, bufferSize - offset, "-----+");
-    for (uint8_t terminal = 0; terminal < CCB_NUM_OF_TERMINALS; terminal++)
+    size_t offset = snprintf(buffer, bufferSize, "Predictive Parsing Table:\n");
+
+    for (uint8_t ntIndex = 0; ntIndex < CCB_NUM_OF_NONTERMINALS; ntIndex++)
     {
-        offset += snprintf(tableStr + offset, bufferSize - offset, "------+");
-    }
-    offset += snprintf(tableStr + offset, bufferSize - offset, "\n");
+        HashMap *ntHashMap = (HashMap *)self[ntIndex];
 
-    // Print table rows
-    for (uint8_t nonterminal = 0; nonterminal < CCB_NUM_OF_NONTERMINALS; nonterminal++)
-    {
-        offset += snprintf(tableStr + offset, bufferSize - offset, "NT%-3d|", nonterminal);
-
-        for (uint8_t terminal = 0; terminal < CCB_NUM_OF_TERMINALS; terminal++)
+        if (ntHashMap == NULL || ntHashMap->nentries == 0)
         {
-            CCB_terminal_t terminalSeq[1] = {terminal};
-            CCB_production_t *productionPtr = NULL;
-
-            HashMap__getItem(
-                (HashMap *)self[nonterminal],
-                terminalSeq,
-                sizeof(CCB_terminal_t),
-                (void **) &productionPtr);
-
-            if (productionPtr != NULL)
-            {
-                offset += snprintf(tableStr + offset, bufferSize - offset, " P%-3d |", *productionPtr);
-            }
-            else
-            {
-                offset += snprintf(tableStr + offset, bufferSize - offset, "   -  |");
-            }
+            continue;
         }
-        offset += snprintf(tableStr + offset, bufferSize - offset, "\n");
+
+        if (offset >= bufferSize - 256)
+        {
+            bufferSize *= 2;
+            char *newBuffer = realloc(buffer, bufferSize);
+            if (newBuffer == NULL)
+            {
+                fprintf(stderr, "Failed to reallocate buffer for logging\n");
+                free(buffer);
+                ClnLogger__del(logger);
+                return;
+            }
+            buffer = newBuffer;
+        }
+
+        offset += snprintf(buffer + offset, bufferSize - offset, "  NT%d:\n", ntIndex);
+
+        HashMapEntry **entries = HashMap__getEntries(ntHashMap);
+
+        for (ssize_t entryIndex = 0; entryIndex < ntHashMap->nentries; entryIndex++)
+        {
+            HashMapEntry *entry = entries[entryIndex];
+
+            if (entry == NULL || entry->key == NULL || entry->value == NULL)
+            {
+                continue;
+            }
+
+            if (offset >= bufferSize - 256)
+            {
+                bufferSize *= 2;
+                char *newBuffer = realloc(buffer, bufferSize);
+                if (newBuffer == NULL)
+                {
+                    fprintf(stderr, "Failed to reallocate buffer for logging\n");
+                    free(buffer);
+                    ClnLogger__del(logger);
+                    return;
+                }
+                buffer = newBuffer;
+            }
+
+            CCB_terminal_t *kSeq = (CCB_terminal_t *)entry->key;
+            CCB_production_t *production = (CCB_production_t *)entry->value;
+            uint8_t k = entry->keySize / sizeof(CCB_terminal_t);
+
+            offset += snprintf(buffer + offset, bufferSize - offset, "    [");
+
+            for (uint8_t i = 0; i < k; i++)
+            {
+                if (i > 0)
+                {
+                    offset += snprintf(buffer + offset, bufferSize - offset, ", ");
+                }
+                offset += snprintf(buffer + offset, bufferSize - offset, "T%d", kSeq[i]);
+            }
+
+            offset += snprintf(buffer + offset, bufferSize - offset, "] -> P%d\n", *production);
+        }
     }
 
-    ClnLogger__log(logger, CLN_DEBUG_LL, "%s", strlen("%s"), tableStr);
-    free(tableStr);
+    ClnLogger__log(logger, CLN_DEBUG_LL, buffer, offset);
+
+    free(buffer);
     ClnLogger__del(logger);
 }
 

@@ -19,30 +19,27 @@
 #define START_RULE_2_PR (CCB_production_t)1
 #define START_RULE_3_PR (CCB_production_t)2
 
-
-
 /* `S --> '+' S S` */
 static ProductionData *buildStartRule1()
 {
     ProductionData *production = ProductionData__new(
         START_RULE_1_PR,
         CCB_START_NT,
-        PLUS_TR,
-        CCB_TERMINAL_GT);
+        PLUS_TR);
 
     if (production == NULL)
     {
-        fprintf(stderr, "Failed to create production");
+        fprintf(stderr, "Failed to create production\n");
         return NULL;
     }
 
-    if (ProductionData__insertRightHandGrammar(production, CCB_START_NT, CCB_NONTERMINAL_GT) <= CCB_ERROR)
+    if (ProductionData__insertRightHandGrammar(production, CCB_START_NT) <= CCB_ERROR)
     {
         ProductionData__del(production);
         return NULL;
     }
 
-    if (ProductionData__insertRightHandGrammar(production, CCB_START_NT, CCB_NONTERMINAL_GT) <= CCB_ERROR)
+    if (ProductionData__insertRightHandGrammar(production, CCB_START_NT) <= CCB_ERROR)
     {
         ProductionData__del(production);
         return NULL;
@@ -57,22 +54,21 @@ static ProductionData *buildStartRule2()
     ProductionData *production = ProductionData__new(
         START_RULE_2_PR,
         CCB_START_NT,
-        MINUS_TR,
-        CCB_TERMINAL_GT);
+        MINUS_TR);
 
     if (production == NULL)
     {
-        fprintf(stderr, "Failed to create production");
+        fprintf(stderr, "Failed to create production\n");
         return NULL;
     }
 
-    if (ProductionData__insertRightHandGrammar(production, CCB_START_NT, CCB_NONTERMINAL_GT) <= CCB_ERROR)
+    if (ProductionData__insertRightHandGrammar(production, CCB_START_NT) <= CCB_ERROR)
     {
         ProductionData__del(production);
         return NULL;
     }
 
-    if (ProductionData__insertRightHandGrammar(production, CCB_START_NT, CCB_NONTERMINAL_GT) <= CCB_ERROR)
+    if (ProductionData__insertRightHandGrammar(production, CCB_START_NT) <= CCB_ERROR)
     {
         ProductionData__del(production);
         return NULL;
@@ -87,12 +83,11 @@ static ProductionData *buildStartRule3()
     ProductionData *production = ProductionData__new(
         START_RULE_3_PR,
         CCB_START_NT,
-        LOWER_A_TR,
-        CCB_TERMINAL_GT);
+        LOWER_A_TR);
 
     if (production == NULL)
     {
-        fprintf(stderr, "Failed to create production");
+        fprintf(stderr, "Failed to create production\n");
         return NULL;
     }
 

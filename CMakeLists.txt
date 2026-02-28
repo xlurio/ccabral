@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.10)
 
 project(ccabral
-    VERSION 1.0.0
+    VERSION 1.0.1
     DESCRIPTION "C library for parser implementation"
     LANGUAGES C
 )
 
-option(CCB_BUILD_EXAMPLE "Build the example executable" OFF)
+option(CCB_BUILD_EXAMPLES "Build the example executable" OFF)
 option(CCB_BUILD_TESTING "Build the testing tree" OFF)
 
 # Disable testing in external dependencies
@@ -17,19 +17,24 @@ add_subdirectory(external/clinschoten)
 
 add_library(ccabral STATIC)
 
+set(CCABRAL_SOURCES_LIST
+    ${PROJECT_SOURCE_DIR}/src/_first.c
+    ${PROJECT_SOURCE_DIR}/src/_follow.c
+    ${PROJECT_SOURCE_DIR}/src/_frstfllw.c
+    ${PROJECT_SOURCE_DIR}/src/_grmrdata.c
+    ${PROJECT_SOURCE_DIR}/src/_prdcdata.c
+    ${PROJECT_SOURCE_DIR}/src/_prdcprsntble.c
+    ${PROJECT_SOURCE_DIR}/src/_prdsmap.c
+    ${PROJECT_SOURCE_DIR}/src/_prsrstck.c
+    ${PROJECT_SOURCE_DIR}/src/parser.c
+    ${PROJECT_SOURCE_DIR}/src/prdcdata.c
+    ${PROJECT_SOURCE_DIR}/src/prdsmap.c
+    ${PROJECT_SOURCE_DIR}/src/tknsq.c
+)
+
 target_sources(ccabral
-    PRIVATE src/_first.c
-    PRIVATE src/_follow.c
-    PRIVATE src/_frstfllw.c
-    PRIVATE src/_grmrdata.c
-    PRIVATE src/_prdcdata.c
-    PRIVATE src/_prdcprsntble.c
-    PRIVATE src/_prdsmap.c
-    PRIVATE src/_prsrstck.c
-    PRIVATE src/parser.c
-    PRIVATE src/prdcdata.c
-    PRIVATE src/prdsmap.c
-    PRIVATE src/tknsq.c
+    PRIVATE
+        ${CCABRAL_SOURCES_LIST}
 )
 
 target_include_directories(ccabral
@@ -88,14 +93,28 @@ install(FILES
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ccabral
 )
 
-if(CCB_BUILD_EXAMPLE)
-    add_executable(ccabral_example example/main.c)
-    target_compile_definitions(ccabral PRIVATE
-        CCB_NUM_OF_PRODUCTIONS=3
-        CCB_NUM_OF_NONTERMINALS=1
-        CCB_NUM_OF_TERMINALS=5
+if(CCB_BUILD_EXAMPLES)
+    add_executable(ll1_example example/ll1_example.c ${CCABRAL_SOURCES_LIST})
+    target_include_directories(ll1_example
+        PUBLIC
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+            $<INSTALL_INTERFACE:include>
     )
-    target_link_libraries(ccabral_example PRIVATE ccabral::ccabral)
+    target_link_libraries(ll1_example PRIVATE cbarroso::cbarroso CLN::clinschoten)
+    target_compile_definitions(ll1_example PRIVATE CCB_NUM_OF_PRODUCTIONS=3)
+    target_compile_definitions(ll1_example PRIVATE CCB_NUM_OF_NONTERMINALS=1)
+    target_compile_definitions(ll1_example PRIVATE CCB_NUM_OF_TERMINALS=5)
+
+    add_executable(ll2_example example/ll2_example.c ${CCABRAL_SOURCES_LIST})
+    target_include_directories(ll2_example
+        PUBLIC
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+            $<INSTALL_INTERFACE:include>
+    )
+    target_link_libraries(ll2_example PRIVATE cbarroso::cbarroso CLN::clinschoten)
+    target_compile_definitions(ll2_example PRIVATE CCB_NUM_OF_PRODUCTIONS=5)
+    target_compile_definitions(ll2_example PRIVATE CCB_NUM_OF_NONTERMINALS=3)
+    target_compile_definitions(ll2_example PRIVATE CCB_NUM_OF_TERMINALS=4)
 endif()
 
 if(CCB_BUILD_TESTING)
@@ -107,16 +126,20 @@ if(CCB_BUILD_TESTING)
         tests/test_prsrstck.c
         tests/test_auxds.c
         tests/test_parser.c
+        ${CCABRAL_SOURCES_LIST}
     )
     
-    target_include_directories(test_runner PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/external/ccauchy/include)
-    target_link_libraries(test_runner PRIVATE ccabral::ccabral)
+    target_include_directories(test_runner PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/external/ccauchy/include
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    )
+    target_link_libraries(test_runner PRIVATE cbarroso::cbarroso CLN::clinschoten)
     
-    # Define test grammar constants to enable parser tests
+    # Define test grammar constants — applied to all sources including ccabral's
     target_compile_definitions(test_runner PRIVATE
         CCB_NUM_OF_PRODUCTIONS=1
         CCB_NUM_OF_NONTERMINALS=1
-        CCB_NUM_OF_TERMINALS=2
+        CCB_NUM_OF_TERMINALS=256
     )
     
     add_test(NAME AllTests COMMAND test_runner)
