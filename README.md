@@ -1,6 +1,6 @@
 # ccabral
 
-A C library for implementing parsers using LL(1) parsing techniques with predictive parsing tables.
+A C library for implementing parsers using LL(k) parsing techniques with predictive parsing tables.
 
 ## Overview
 
