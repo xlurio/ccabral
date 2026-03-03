@@ -1,3 +1,6 @@
+#ifndef CCABRAL__PRDSMAP_H
+#define CCABRAL__PRDSMAP_H
+
 #include <stdio.h>
 #include <string.h>
 #include <cbarroso/constants.h>
@@ -26,3 +29,5 @@ int8_t ProductionsHashMap__getProdDataFromNonterminalNRuleId(
     ProductionData **prodDataAddr);
 
 ProductionsHashMap *ProductionsHashMap__deepCopy(ProductionsHashMap *self);
+
+#endif
